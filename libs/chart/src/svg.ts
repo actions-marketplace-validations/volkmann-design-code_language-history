@@ -1,5 +1,6 @@
 import type { Dataset } from "@language-history/format";
 import { type BandOptions, computeBands, OTHERS } from "./bands";
+import { bandColor, type Scheme } from "./colors";
 
 export type Theme = "auto" | "light" | "dark";
 
@@ -13,6 +14,11 @@ export interface SvgOptions extends BandOptions {
   tooltips: boolean;
   /** How many of the extensions inside Others the legend names (it always gives their count). */
   othersListed: number;
+  /**
+   * Colors by extension (lower-case, no dot) or `Others`, as `#rgb` / `#rrggbb`; they win over
+   * GitHub's language colors and apply to both themes.
+   */
+  colors?: Record<string, string>;
 }
 
 interface Palette {
@@ -27,7 +33,8 @@ interface Palette {
   others: string;
 }
 
-// Categorical order and steps from the validated reference palette, light and dark each selected.
+// Surfaces and text from the validated reference palette, light and dark each selected. `series`
+// only colors extensions GitHub has no color for.
 const PALETTES: Record<"light" | "dark", Palette> = {
   light: {
     surface: "#fcfcfb",
@@ -67,11 +74,12 @@ const PALETTES: Record<"light" | "dark", Palette> = {
       "#9085e9",
       "#e66767",
     ],
-    others: "#5a5955",
+    others: "#45443f",
   },
 };
 
-export const MAX_BANDS = PALETTES.light.series.length;
+/** Most named bands: more colors than this are hard to tell apart in a legend. */
+export const MAX_BANDS = 8;
 
 const FONT = `system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, 'DejaVu Sans', sans-serif`;
 
@@ -168,7 +176,8 @@ export function renderSvg(dataset: Dataset, options: SvgOptions): string {
   }
   const bands = computeBands(days, options);
   const base = PALETTES[options.theme === "dark" ? "dark" : "light"];
-  const color = (p: Palette, k: number) => (bands.keys[k] === OTHERS ? p.others : p.series[k]);
+  const scheme = options.theme === "dark" ? "dark" : "light";
+  const color = (s: Scheme, k: number) => bandColor(bands.keys[k], s, PALETTES[s], options.colors);
   const W = options.width;
   const H = options.height;
   const pad = 16;
@@ -201,7 +210,7 @@ export function renderSvg(dataset: Dataset, options: SvgOptions): string {
       ly += 18;
     }
     parts.push(
-      `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" class="s${k}" fill="${color(base, k)}"/>`,
+      `<rect x="${lx}" y="${ly - 9}" width="10" height="10" rx="2" class="s${k}" fill="${color(scheme, k)}"/>`,
       `<text x="${lx + 16}" y="${ly}" font-size="12"><tspan class="t-primary" fill="${base.primary}">${esc(
         label,
       )}</tspan> <tspan class="t-muted" fill="${base.muted}">${esc(value)}</tspan></text>`,
@@ -248,7 +257,7 @@ export function renderSvg(dataset: Dataset, options: SvgOptions): string {
   const discrete = colW >= 8;
   for (let k = 0; k < bands.keys.length; k++) {
     const upper = lower.map((v, i) => v + bands.values[i][k]);
-    const fill = color(base, k);
+    const fill = color(scheme, k);
     if (discrete) {
       // Wide enough for real columns: 2px gap between columns and between stacked segments
       const rects = upper.map((u, i) => {
@@ -315,7 +324,7 @@ export function renderSvg(dataset: Dataset, options: SvgOptions): string {
       `.axis{stroke:${dark.axis}}`,
       `.seam{stroke:${dark.surface}}`,
       `.hit rect:hover{fill:${dark.hover}}`,
-      ...bands.keys.map((_, k) => `.s${k}{fill:${color(dark, k)}}`),
+      ...bands.keys.map((_, k) => `.s${k}{fill:${color("dark", k)}}`),
     ];
     css.push(`@media (prefers-color-scheme: dark){${rules.join("")}}`);
   }

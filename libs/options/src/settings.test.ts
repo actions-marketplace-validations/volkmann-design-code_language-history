@@ -100,5 +100,17 @@ describe("renderOptions", () => {
     expect(options.maxBands).toBe(8);
     expect(options.theme).toBe("auto");
     expect(options.tooltips).toBe(true);
+    expect(options.colors).toEqual({});
+  });
+
+  test("color keys lose a leading dot and their case, others means the Others band", () => {
+    const options = renderOptions({ colors: { ".TS": "#123456", others: "#abc" } }, log);
+    expect(options.colors).toEqual({ ts: "#123456", Others: "#abc" });
+  });
+
+  test("colors must be hex, and layers add up", () => {
+    expect(() => validateSettings({ colors: { ts: "blue" } }, "test")).toThrow("#rgb or #rrggbb");
+    const merged = mergeSettings({ colors: { ts: "#111" } }, { colors: { md: "#222" } });
+    expect(merged.colors).toEqual({ ts: "#111", md: "#222" });
   });
 });

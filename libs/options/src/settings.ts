@@ -1,5 +1,5 @@
 import { isAbsolute, relative, resolve } from "node:path";
-import { MAX_BANDS, type Theme } from "@language-history/chart";
+import { MAX_BANDS, OTHERS, type Theme } from "@language-history/chart";
 import type { RenderOptions } from "@language-history/chart/files";
 import { type CollectOptions, DEFAULT_ALIASES } from "@language-history/collect";
 
@@ -34,6 +34,8 @@ export interface Settings {
   theme?: Theme;
   title?: string;
   tooltips?: boolean;
+  /** Band colors by extension or "Others" (`#rgb` / `#rrggbb`), over GitHub's language colors. */
+  colors?: Record<string, string>;
   from?: string;
   to?: string;
 }
@@ -60,6 +62,7 @@ const KEYS: Record<keyof Settings, "string" | "number" | "boolean" | "list" | "r
   theme: "string",
   title: "string",
   tooltips: "boolean",
+  colors: "record",
   from: "string",
   to: "string",
 };
@@ -97,6 +100,11 @@ export function validateSettings(value: unknown, source: string): Settings {
   if (settings.theme !== undefined && !["auto", "light", "dark"].includes(settings.theme)) {
     throw new Error(`${source}: "theme" must be auto, light or dark`);
   }
+  for (const [ext, color] of Object.entries(settings.colors ?? {})) {
+    if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(color)) {
+      throw new Error(`${source}: color for "${ext}" must be #rgb or #rrggbb, got "${color}"`);
+    }
+  }
   return settings;
 }
 
@@ -121,7 +129,9 @@ export function mergeSettings(...layers: Settings[]): Settings {
         continue;
       }
       merged[key] =
-        key === "aliases" ? { ...(merged.aliases as Record<string, string>), ...value } : value;
+        key === "aliases" || key === "colors"
+          ? { ...(merged[key] as Record<string, string>), ...value }
+          : value;
     }
   }
   return merged as Settings;
@@ -193,6 +203,12 @@ export function renderOptions(settings: Settings, log: (message: string) => void
     theme: settings.theme ?? "auto",
     title: settings.title ?? "Lines of code",
     tooltips: settings.tooltips ?? true,
+    colors: Object.fromEntries(
+      Object.entries(settings.colors ?? {}).map(([key, color]) => [
+        key.toLowerCase() === OTHERS.toLowerCase() ? OTHERS : key.replace(/^\./, "").toLowerCase(),
+        color,
+      ]),
+    ),
     from: settings.from,
     to: settings.to,
     log,

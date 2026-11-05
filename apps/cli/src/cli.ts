@@ -47,6 +47,8 @@ render:
       --title <text>       (default: "Lines of code")
       --from <date> --to <date>    Limit the rendered range
       --no-tooltips        Omit the per-day hover tooltips (smaller SVG)
+      --color <ext=#hex>   Band color for an extension or Others, e.g. ts=#3178c6 (repeatable;
+                           default: GitHub's language colors)
 `;
 
 const { values, positionals } = parseArgs({
@@ -78,6 +80,7 @@ const { values, positionals } = parseArgs({
     from: { type: "string" },
     to: { type: "string" },
     tooltips: { type: "boolean" },
+    color: { type: "string", multiple: true },
   },
 });
 
@@ -93,6 +96,11 @@ const list = (items: string[] | undefined) =>
     .map((s) => s.trim())
     .filter(Boolean);
 const num = (value: string | undefined) => (value === undefined ? undefined : Number(value));
+/** `["a=b", "c=d"]` → `{ a: "b", c: "d" }` */
+const pairs = (values: string[] | undefined) =>
+  values
+    ? Object.fromEntries(values.map((pair) => pair.split("=").map((s) => s.trim())))
+    : undefined;
 
 const flags = validateSettings(
   {
@@ -104,9 +112,7 @@ const flags = validateSettings(
     linguist: values.linguist,
     exclude: values.exclude,
     excludeExt: list(values["exclude-ext"]),
-    aliases: values.alias
-      ? Object.fromEntries(values.alias.map((a) => a.split("=").map((s) => s.trim())))
-      : undefined,
+    aliases: pairs(values.alias),
     defaultAliases: values["default-aliases"],
     until: values.until,
     full: values.full,
@@ -119,6 +125,7 @@ const flags = validateSettings(
     theme: values.theme,
     title: values.title,
     tooltips: values.tooltips,
+    colors: pairs(values.color),
     from: values.from,
     to: values.to,
   },

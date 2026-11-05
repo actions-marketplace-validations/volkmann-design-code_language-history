@@ -82,6 +82,29 @@ describe("renderSvg", () => {
     expect(() => render({})).toThrow("No data");
   });
 
+  test("a band's color follows its extension, not its rank", () => {
+    const day = (byExt: Record<string, number>): DayRecord => ({
+      date: "2026-01-01",
+      commit: "c",
+      carried: false,
+      total: Object.values(byExt).reduce((a, b) => a + b, 0),
+      byExt,
+    });
+    const legendFill = (svg: string, ext: string) =>
+      new RegExp(`fill="(#[0-9a-f]{6})"/>\\s*<text[^>]*><tspan[^>]*>\\.${ext}<`).exec(svg)?.[1];
+    const tsFirst = render({ days: [day({ ts: 100, md: 50 })] }, { theme: "light" });
+    const mdFirst = render({ days: [day({ md: 100, ts: 50 })] }, { theme: "light" });
+    expect(legendFill(tsFirst, "ts")).toBe("#3178c6");
+    expect(legendFill(mdFirst, "ts")).toBe("#3178c6");
+    expect(legendFill(mdFirst, "md")).toBe("#083fa1");
+
+    const custom = render(
+      { days: [day({ ts: 100 })] },
+      { theme: "light", colors: { ts: "#abcdef" } },
+    );
+    expect(legendFill(custom, "ts")).toBe("#abcdef");
+  });
+
   test("few days: one rect per column and band", () => {
     const svg = render({ days: days(10) });
     const band = svg.match(/<g class="s0" fill="[^"]+">(.*?)<\/g>/)?.[1] ?? "";

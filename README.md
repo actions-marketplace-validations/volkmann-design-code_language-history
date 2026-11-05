@@ -143,6 +143,7 @@ and inputs win over it. Unknown keys are an error.
 | `theme` | `auto` | `auto` (follows light/dark), `light` or `dark`; PNG uses light for `auto` |
 | `title` | `Lines of code` | |
 | `tooltips` | `true` | Per-day hover tooltips |
+| `colors` | GitHub's | Band colors by extension or `Others`, e.g. `{ "ts": "#3178c6", "Others": "#999" }` (CLI: `--color ts=#3178c6`) |
 | `from`, `to` | | Limit the rendered range |
 
 For example:
@@ -207,6 +208,11 @@ For example:
   most 8 named bands (one per palette hue), the rest is "Others". Its legend entry says how many
   extensions it holds and names the largest (`--others-listed`, default 3).
 - Bands are ordered by their size on the last day, largest at the bottom.
+- Each extension keeps its color in every chart, whatever its rank: the color GitHub's language
+  bar uses for it (from [Linguist](https://github.com/github-linguist/linguist), regenerated with
+  `bun run linguist-colors`). Extensions without one get a fixed color picked by their name. In
+  dark mode, colors too dark to see on the background (JSON, Lua, Markdown, …) are lightened.
+  `colors` overrides any of them, `Others` included, in both themes.
 - `--theme auto` (default) follows the viewer's light/dark setting through a media query inside
   the SVG, which also works when the SVG is embedded in a GitHub README. PNG gets one concrete
   theme.

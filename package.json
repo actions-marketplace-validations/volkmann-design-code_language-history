@@ -12,6 +12,7 @@
     "prepare": "lefthook install",
     "language-history": "bun apps/cli/src/cli.ts",
     "examples": "bun apps/examples/src/examples.ts",
+    "linguist-colors": "bun libs/chart/scripts/linguist-colors.ts",
     "check": "biome check .",
     "typecheck": "nx run-many -t typecheck",
     "test": "nx run-many -t test:unit"
