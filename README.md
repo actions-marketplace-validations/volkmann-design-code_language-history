@@ -11,7 +11,11 @@ up to date by a scheduled job and embedded as an SVG that follows the viewer's l
   [Counting](#counting) for how this differs from GitHub's language bar.
 - **One value per calendar day:** the last commit of each day on the branch's first-parent
   history, in a time zone you choose. Days without commits carry the previous value over.
-- **Data first:** `collect` writes plain JSONL, `render` turns it into SVG or PNG. Use either.
+- **Split by package or folder, too:** besides extensions, lines can be grouped by directory
+  (`packages/*`) or by named globs (tests vs. code). One collect, a chart per split, see
+  [Dimensions](#dimensions).
+- **Data first:** `collect` writes plain JSONL, `render` turns it into SVG or PNG, `export` into
+  CSV. Use any of them.
 - **Fast and incremental:** reads git objects directly, caches counts per blob, and only measures
   new days. Angular's twelve years take under 3 minutes once, a daily update under a second
   (see [Benchmarks](#benchmarks)).
@@ -111,6 +115,8 @@ bun install
 bun language-history collect --repo ../my-repo --ref main --data my-repo.jsonl
 # 2. chart: SVG and/or PNG
 bun language-history render --data my-repo.jsonl -o my-repo.svg -o my-repo.png
+# 3. or a table: one row per day, one column per extension
+bun language-history export --data my-repo.jsonl -o my-repo.csv
 ```
 
 `bun language-history --help` lists every option.
@@ -132,9 +138,11 @@ and inputs win over it. Unknown keys are an error.
 | `excludeExt` | | Extensions to skip, e.g. `["svg", "json"]` |
 | `aliases` | see [Counting](#counting) | Count one extension as another, e.g. `{ "tsx": "ts" }` |
 | `defaultAliases` | `true` | Keep the built-in aliases |
+| `dimensions` | | Splits besides the extension, by name; see [Dimensions](#dimensions) |
 | `until` | day of the newest commit | Fill days up to `YYYY-MM-DD` or `today` |
 | `full` | `false` | Ignore existing data, collect everything again |
 | `out` | `["language-history.svg"]` | Chart files, `.svg` or `.png` |
+| `by` | `ext` | What the bands stand for: `ext` or the name of a dimension (CLI: `--by`) |
 | `threshold` | `0.03` | Own band once an extension's peak reaches this share of the peak total |
 | `maxBands` | `8` | Most named bands before the rest folds into "Others" (at most 8) |
 | `othersListed` | `3` | Extensions named in the "Others" legend entry |
@@ -142,7 +150,7 @@ and inputs win over it. Unknown keys are an error.
 | `theme` | `auto` | `auto` (follows light/dark), `light` or `dark`; PNG uses light for `auto` |
 | `title` | `Lines of code` | |
 | `tooltips` | `true` | Per-day hover tooltips |
-| `colors` | GitHub's | Band colors by extension or `Others`, e.g. `{ "ts": "#3178c6", "Others": "#999" }` (CLI: `--color ts=#3178c6`) |
+| `colors` | GitHub's | Band colors by extension (or dimension value) or `Others`, e.g. `{ "ts": "#3178c6", "Others": "#999" }` (CLI: `--color ts=#3178c6`) |
 | `from`, `to` | | Limit the rendered range |
 
 For example:
@@ -157,6 +165,29 @@ For example:
 }
 ```
 
+## Dimensions
+
+Lines are always counted per extension. `dimensions` adds more splits, each by name:
+
+```json
+{
+  "dimensions": {
+    "package": { "dirs": ["packages/*", "apps/*"] },
+    "kind": { "groups": { "tests": ["tests/**", "**/*.test.ts"], "code": "**" } }
+  }
+}
+```
+
+- `dirs`: one value per directory matching a pattern, named by its path (`packages/core`). A file
+  belongs to the first pattern whose directory it is in.
+- `groups`: named groups of globs; a file belongs to the first group with a matching glob.
+- Files no pattern or group matches count as `(rest)`.
+- Every combination is counted (here package × kind × extension), so a chart can show any one of
+  them without collecting again: `"by": "package"` sums up over kinds and extensions. Each chart
+  is a separate `render` with its own `by` and `out`.
+- Changing `dimensions` collects from scratch. Values other than extensions get the palette's
+  colors in the order of their names, so they keep their color when their size changes.
+
 ## Data
 
 ```jsonl
@@ -170,6 +201,24 @@ For example:
 - Days without a commit carry the previous values over (`carried: true`).
 - `byExt` holds every extension after aliases. Grouping into "Others" happens at render time, so
   the chart can change without collecting again.
+
+With [dimensions](#dimensions), the file uses format version 2, which only stores what changed:
+
+```jsonl
+{"meta":{"tool":"language-history","version":2,…,"dimensions":[{"name":"package","dirs":["packages/*"]},{"name":"ext"}],…}}
+{"date":"2026-01-04","commit":"3f2a…","total":5210,"set":[["packages/app","ts",4100],["(rest)","md",1110]]}
+{"date":"2026-01-07","commit":"9c1e…","total":5260,"set":[["packages/app","ts",4150]]}
+{"date":"2026-01-09","carried":true}
+```
+
+- One line per day with a commit, holding the counts that changed since the previous line: the
+  value of each dimension in order, then the lines. `0` means the combination is gone.
+- Days in between carry the values over; a last `carried` line marks the end when `until` fills
+  days after the last commit.
+- A full table per day is a replay away: `parseDataset` in `@language-history/format` does it,
+  `language-history export` writes it as CSV (`--by package` sums up to one dimension).
+- Kirby split by top-level folder, kind and extension: 72 KB, against 1 MB for version 1 split by
+  extension only. Files without dimensions stay version 1.
 
 ## Counting
 
@@ -207,6 +256,7 @@ For example:
   most 8 named bands (one per palette hue), the rest is "Others". Its legend entry says how many
   extensions it holds and names the largest (`--others-listed`, default 3).
 - Bands are ordered by their size on the last day, largest at the bottom.
+- `by` picks what the bands stand for: extensions (default) or a [dimension](#dimensions).
 - Each extension keeps its color in every chart, whatever its rank: the color GitHub's language
   bar uses for it (from [Linguist](https://github.com/github-linguist/linguist), regenerated with
   `bun run linguist-colors`). Extensions without one get a fixed color picked by their name. In
@@ -254,6 +304,9 @@ change what is counted; the next run then collects from scratch. Releases and th
 ## Roadmap
 
 - npm package with a bundled CLI (`bunx language-history`).
+- Two dimensions in one chart (small multiples: one chart per package, colored by extension), and
+  several charts from one config.
+- Dimensions from line history: the year a line was written, its author (`git blame`).
 - Web app: render any published JSONL, compare repositories.
 
 ## Prior art

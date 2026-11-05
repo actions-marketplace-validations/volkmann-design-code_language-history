@@ -1,7 +1,14 @@
-import { type DayRecord, type Meta, sameSettings } from "@language-history/format";
+import {
+  type DayRecord,
+  KEY_SEPARATOR,
+  type Meta,
+  nextDay,
+  sameSettings,
+} from "@language-history/format";
 import { readDataset, writeDataset } from "@language-history/format/file";
 import { createClassifier } from "./classify";
 import { countNonBlankLines } from "./count";
+import { createPathValue } from "./dimensions";
 import {
   attributesFingerprint,
   booleanAttributes,
@@ -47,12 +54,6 @@ export function dayFormatter(tz: string): (unixSeconds: number) => string {
   return (unixSeconds) => format.format(new Date(unixSeconds * 1000));
 }
 
-export function nextDay(date: string): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
 export async function collect(options: CollectOptions): Promise<void> {
   const { repo, log } = options;
   const toDay = dayFormatter(options.meta.tz);
@@ -95,8 +96,27 @@ export async function collect(options: CollectOptions): Promise<void> {
   const classifier = createClassifier(meta);
   const own = new Set(meta.own);
   const linesByBlob = new Map<string, number | null>();
-  // Per path: the extension it counts towards, or null when it is skipped.
-  const extByPath = new Map<string, string | null>();
+  // Per dimension: its value for a path, given the path's extension
+  const valuesOf = (meta.dimensions ?? [{ name: "ext" }]).map((dimension) => {
+    if (!("dirs" in dimension) && !("groups" in dimension)) {
+      return (_path: string, ext: string) => ext;
+    }
+    const pathValue = createPathValue(dimension);
+    return (path: string) => pathValue(path);
+  });
+  // Per path: the key its lines count towards, or null when it is skipped.
+  const keyByPath = new Map<string, string | null>();
+  // One detached string per key, shared by all paths with that key
+  const keys = new Map<string, string>();
+  const intern = (values: string[]) => {
+    const key = values.join(KEY_SEPARATOR);
+    let shared = keys.get(key);
+    if (shared === undefined) {
+      shared = detach(key);
+      keys.set(shared, shared);
+    }
+    return shared;
+  };
 
   async function classifyNew(paths: string[]): Promise<void> {
     const attrs =
@@ -114,14 +134,17 @@ export async function collect(options: CollectOptions): Promise<void> {
           ext = null;
         }
       }
-      extByPath.set(detach(path), ext);
+      keyByPath.set(
+        detach(path),
+        ext === null ? null : intern(valuesOf.map((value) => value(path, ext))),
+      );
     }
   }
 
   async function measure(sha: string): Promise<Record<string, number>> {
     const blobs = await listBlobs(repo, sha, meta.paths);
-    await classifyNew(blobs.map((blob) => blob.path).filter((path) => !extByPath.has(path)));
-    const counted = blobs.filter((blob) => extByPath.get(blob.path) !== null);
+    await classifyNew(blobs.map((blob) => blob.path).filter((path) => !keyByPath.has(path)));
+    const counted = blobs.filter((blob) => keyByPath.get(blob.path) !== null);
     const unknown = new Map<string, number>();
     for (const blob of counted) {
       if (!linesByBlob.has(blob.sha)) {
@@ -133,16 +156,16 @@ export async function collect(options: CollectOptions): Promise<void> {
       [...unknown].map(([sha, size]) => ({ sha, size })),
       (blobSha, content) => linesByBlob.set(blobSha, countNonBlankLines(content)),
     );
-    const byExt: Record<string, number> = {};
+    const counts: Record<string, number> = {};
     for (const blob of counted) {
       const lines = linesByBlob.get(blob.sha);
-      const ext = extByPath.get(blob.path);
-      if (!lines || !ext) {
+      const key = keyByPath.get(blob.path);
+      if (!lines || !key) {
         continue; // binary, empty or excluded
       }
-      byExt[ext] = (byExt[ext] ?? 0) + lines;
+      counts[key] = (counts[key] ?? 0) + lines;
     }
-    return Object.fromEntries(Object.entries(byExt).sort((a, b) => b[1] - a[1]));
+    return Object.fromEntries(Object.entries(counts).sort((a, b) => b[1] - a[1]));
   }
 
   let previous = days[days.length - 1];
@@ -152,9 +175,9 @@ export async function collect(options: CollectOptions): Promise<void> {
   while (day <= lastDay) {
     const sha = lastCommitOfDay.get(day);
     if (sha) {
-      const byExt = await measure(sha);
-      const total = Object.values(byExt).reduce((sum, n) => sum + n, 0);
-      previous = { date: day, commit: sha, carried: false, total, byExt };
+      const counts = await measure(sha);
+      const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+      previous = { date: day, commit: sha, carried: false, total, counts };
       measured++;
       if (measured % 50 === 0) {
         log(`${day}  ${measured} commits measured`);

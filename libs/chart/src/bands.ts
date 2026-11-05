@@ -26,12 +26,12 @@ export function computeBands(days: DayRecord[], options: BandOptions): Bands {
   let peakTotal = 0;
   for (const day of days) {
     peakTotal = Math.max(peakTotal, day.total);
-    for (const [ext, lines] of Object.entries(day.byExt)) {
+    for (const [ext, lines] of Object.entries(day.counts)) {
       peak.set(ext, Math.max(peak.get(ext) ?? 0, lines));
     }
   }
   const last = days[days.length - 1];
-  const size = (ext: string) => last?.byExt[ext] ?? 0;
+  const size = (ext: string) => last?.counts[ext] ?? 0;
   const named = [...peak]
     .filter(([, lines]) => lines >= options.threshold * peakTotal)
     .map(([ext]) => ext)
@@ -40,7 +40,7 @@ export function computeBands(days: DayRecord[], options: BandOptions): Bands {
     .slice(0, options.maxBands);
 
   const values = days.map((day) => {
-    const row = named.map((ext) => day.byExt[ext] ?? 0);
+    const row = named.map((ext) => day.counts[ext] ?? 0);
     row.push(day.total - row.reduce((sum, n) => sum + n, 0));
     return row;
   });
@@ -50,7 +50,7 @@ export function computeBands(days: DayRecord[], options: BandOptions): Bands {
       row.pop();
     }
   }
-  const others = Object.entries(last?.byExt ?? {})
+  const others = Object.entries(last?.counts ?? {})
     .filter(([ext, lines]) => lines > 0 && !named.includes(ext))
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([ext]) => ext);

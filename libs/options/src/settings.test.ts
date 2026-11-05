@@ -114,3 +114,45 @@ describe("renderOptions", () => {
     expect(merged.colors).toEqual({ ts: "#111", md: "#222" });
   });
 });
+
+describe("dimensions", () => {
+  const dimensions = {
+    package: { dirs: "packages/*" },
+    layer: { groups: { tests: ["tests/**", "**/*.test.ts"], app: "src/**" } },
+  };
+
+  test("are stored before the extension, globs as lists, and switch to format version 2", () => {
+    const { meta } = collectOptions({ dimensions }, log);
+    expect(meta.version).toBe(2);
+    expect(meta.dimensions).toEqual([
+      { name: "package", dirs: ["packages/*"] },
+      { name: "layer", groups: { tests: ["tests/**", "**/*.test.ts"], app: ["src/**"] } },
+      { name: "ext" },
+    ]);
+  });
+
+  test("without any, the data stays version 1 and its settings line unchanged", () => {
+    const { meta } = collectOptions({}, log);
+    expect(meta.version).toBe(1);
+    expect("dimensions" in meta).toBe(false);
+  });
+
+  test("are validated", () => {
+    expect(validateSettings({ dimensions }, "config")).toEqual({ dimensions });
+    const invalid = (value: unknown) => () => validateSettings({ dimensions: value }, "config");
+    expect(invalid([])).toThrow('"dimensions" must be an object');
+    expect(invalid({ ext: { dirs: "x/*" } })).toThrow('"ext" is built in');
+    expect(invalid({ "my package": { dirs: "x/*" } })).toThrow("names are letters");
+    expect(invalid({ package: { dirs: "x/*", groups: {} } })).toThrow('{ "dirs": ... } or');
+    expect(invalid({ package: { blame: "author" } })).toThrow('{ "dirs": ... } or');
+    expect(invalid({ package: { dirs: 3 } })).toThrow('"dirs" must be a glob');
+    expect(invalid({ layer: { groups: { a: [1] } } })).toThrow('"groups" must map');
+  });
+
+  test("the chart's dimension, and colors keep their keys for dimensions other than ext", () => {
+    const options = renderOptions({ by: "package", colors: { "packages/Core": "#123" } }, log);
+    expect(options.by).toBe("package");
+    expect(options.colors).toEqual({ "packages/Core": "#123" });
+    expect(renderOptions({}, log).by).toBe("ext");
+  });
+});

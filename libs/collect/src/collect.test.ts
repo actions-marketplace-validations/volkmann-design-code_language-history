@@ -2,9 +2,9 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Meta } from "@language-history/format";
+import { KEY_SEPARATOR, type Meta, REST } from "@language-history/format";
 import { readDataset } from "@language-history/format/file";
-import { collect, nextDay } from "./collect";
+import { collect } from "./collect";
 
 // Integration tests against throwaway git repositories with controlled commit dates.
 
@@ -94,14 +94,6 @@ function createRepo() {
 
 const lines = (count: number) => Array.from({ length: count }, (_, i) => `line ${i}\n\n`).join("");
 
-describe("nextDay", () => {
-  test("crosses month and year boundaries", () => {
-    expect(nextDay("2026-01-31")).toBe("2026-02-01");
-    expect(nextDay("2028-02-28")).toBe("2028-02-29");
-    expect(nextDay("2026-12-31")).toBe("2027-01-01");
-  });
-});
-
 describe("collect", () => {
   test("measures the last commit of each day and carries values over days without commits", async () => {
     const r = createRepo();
@@ -117,7 +109,7 @@ describe("collect", () => {
       ["2026-01-03", lastOfDay1, true, 4],
       ["2026-01-04", day4, false, 9],
     ]);
-    expect(days[3].byExt).toEqual({ ts: 8, md: 1 });
+    expect(days[3].counts).toEqual({ ts: 8, md: 1 });
   });
 
   test("follows first parents only: a merged branch shows up on the merge day", async () => {
@@ -183,7 +175,7 @@ describe("collect", () => {
       excludeExt: ["json"],
     });
 
-    expect(days[0].byExt).toEqual({ ts: 3 });
+    expect(days[0].counts).toEqual({ ts: 3 });
   });
 
   test("skips binary and empty files", async () => {
@@ -196,7 +188,7 @@ describe("collect", () => {
 
     const { days } = await r.collect();
 
-    expect(days[0].byExt).toEqual({ ts: 1 });
+    expect(days[0].counts).toEqual({ ts: 1 });
   });
 
   test("the checkout's linguist attributes apply to the whole history", async () => {
@@ -211,11 +203,11 @@ describe("collect", () => {
     r.write({ ".gitattributes": "gen.ts linguist-generated\nv/** linguist-vendored\n" });
 
     const skipped = await r.collect();
-    expect(skipped.days.map((d) => d.byExt)).toEqual([{ ts: 1 }, { ts: 1 }]);
+    expect(skipped.days.map((d) => d.counts)).toEqual([{ ts: 1 }, { ts: 1 }]);
     expect(skipped.meta?.attributes).toContain(".gitattributes:");
 
     const counted = await r.collect({ linguist: false });
-    expect(counted.days.map((d) => d.byExt)).toEqual([
+    expect(counted.days.map((d) => d.counts)).toEqual([
       { js: 7, ts: 6 },
       { js: 7, ts: 7 },
     ]);
@@ -233,17 +225,17 @@ describe("collect", () => {
     });
 
     const defaults = await r.collect();
-    expect(defaults.days[0].byExt).toEqual({ ts: 1 });
+    expect(defaults.days[0].counts).toEqual({ ts: 1 });
     expect(defaults.meta?.linguistRules).toBeGreaterThan(0);
 
     r.write({
       ".gitattributes": "web/vendor/** -linguist-vendored\n*.min.js linguist-generated=false\n",
     });
     const overridden = await r.collect();
-    expect(overridden.days[0].byExt).toEqual({ js: 7, ts: 1 });
+    expect(overridden.days[0].counts).toEqual({ js: 7, ts: 1 });
 
     const off = await r.collect({ linguist: false });
-    expect(off.days[0].byExt).toEqual({ lock: 50, js: 27, ts: 1 });
+    expect(off.days[0].counts).toEqual({ lock: 50, js: 27, ts: 1 });
     expect(off.meta?.linguistRules).toBe(0);
   });
 
@@ -278,7 +270,7 @@ describe("collect", () => {
 
     const { days } = await r.collect({ own: ["docs/chart.svg", "docs/history.jsonl"] });
 
-    expect(days.map((d) => [d.date, d.commit, d.carried, d.byExt])).toEqual([
+    expect(days.map((d) => [d.date, d.commit, d.carried, d.counts])).toEqual([
       ["2026-01-01", day1, false, { ts: 1 }],
       ["2026-01-02", day1, true, { ts: 1 }],
       ["2026-01-03", day3, false, { ts: 2 }],
@@ -303,5 +295,51 @@ describe("collect", () => {
 
     const full = await r.collect({ excludeExt: ["md"] }, { full: true });
     expect(full.logs[0]).toBe("Full run requested");
+  });
+
+  test("dimensions split the lines by path as well, stored as changes", async () => {
+    const r = createRepo();
+    r.commit("2026-01-01T12:00:00Z", {
+      "packages/a/index.ts": lines(3),
+      "packages/a/README.md": lines(1),
+      "packages/b/index.ts": lines(2),
+      "scripts/build.ts": lines(4),
+    });
+    const day3 = r.commit("2026-01-03T12:00:00Z", { "packages/b/index.ts": lines(5) });
+
+    const { days, meta } = await r.collect({
+      version: 2,
+      dimensions: [
+        { name: "package", dirs: ["packages/*"] },
+        { name: "layer", groups: { docs: ["**/*.md"] } },
+        { name: "ext" },
+      ],
+    });
+
+    const key = (...values: string[]) => values.join(KEY_SEPARATOR);
+    expect(meta?.version).toBe(2);
+    expect(days.map((d) => [d.date, d.commit, d.carried, d.total])).toEqual([
+      ["2026-01-01", expect.any(String), false, 10],
+      ["2026-01-02", expect.any(String), true, 10],
+      ["2026-01-03", day3, false, 13],
+    ]);
+    expect(days[2].counts).toEqual({
+      [key("packages/b", REST, "ts")]: 5,
+      [key(REST, REST, "ts")]: 4,
+      [key("packages/a", REST, "ts")]: 3,
+      [key("packages/a", "docs", "md")]: 1,
+    });
+
+    // Resuming reads the changes back and gives the same as a full run
+    r.commit("2026-01-04T12:00:00Z", { "packages/a/README.md": "" });
+    const settings = {
+      version: 2 as const,
+      dimensions: meta?.dimensions,
+    };
+    const incremental = await r.collect(settings);
+    const full = await r.collect(settings, { full: true, out: join(r.root, "full.jsonl") });
+    expect(incremental.logs[0]).toBe("Resuming after 2026-01-02 (2 days kept)");
+    expect(incremental.days).toEqual(full.days);
+    expect(incremental.days[3].counts[key("packages/a", "docs", "md")]).toBeUndefined();
   });
 });

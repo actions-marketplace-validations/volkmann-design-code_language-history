@@ -3,6 +3,7 @@ import { isAbsolute, join, relative } from "node:path";
 import { compact } from "@language-history/chart";
 import { renderFiles } from "@language-history/chart/files";
 import { collect } from "@language-history/collect";
+import { dimensionNames, project } from "@language-history/format";
 import { readDataset } from "@language-history/format/file";
 import {
   collectOptions,
@@ -97,7 +98,7 @@ export async function runAction({ env, cwd }: { env: Env; cwd: string }): Promis
   await collect({ ...collecting, repo, out: data });
   await renderFiles({ ...rendering, input: data, outputs });
 
-  const { days } = await readDataset(data);
+  const { meta, days } = await readDataset(data);
   const last = days[days.length - 1];
   // Only files inside the checkout can be committed
   const paths = [data, ...outputs].filter((path) => {
@@ -130,7 +131,7 @@ export async function runAction({ env, cwd }: { env: Env; cwd: string }): Promis
   }
 
   writeOutputs(env, result);
-  writeSummary(env, result, last?.byExt ?? {});
+  writeSummary(env, result, last ? project(last.counts, dimensionNames(meta), ["ext"]) : {});
   return result;
 }
 

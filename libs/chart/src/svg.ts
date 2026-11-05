@@ -1,4 +1,4 @@
-import type { Dataset } from "@language-history/format";
+import { type Dataset, type DayRecord, dimensionNames, project } from "@language-history/format";
 import { type BandOptions, computeBands, OTHERS } from "./bands";
 import { bandColor, type Scheme } from "./colors";
 
@@ -12,11 +12,13 @@ export interface SvgOptions extends BandOptions {
   title: string;
   /** Per-day hover tooltips (`<title>`); only useful where the SVG is interactive. */
   tooltips: boolean;
-  /** How many of the extensions inside Others the legend names (it always gives their count). */
+  /** How many of the keys inside Others the legend names (it always gives their count). */
   othersListed: number;
+  /** The dimension the bands stand for (default: `ext`); the others are summed up. */
+  by?: string;
   /**
-   * Colors by extension (lower-case, no dot) or `Others`, as `#rgb` / `#rrggbb`; they win over
-   * GitHub's language colors and apply to both themes.
+   * Colors by band key (extensions lower-case, no dot) or `Others`, as `#rgb` / `#rrggbb`; they
+   * win over GitHub's language colors and apply to both themes.
    */
   colors?: Record<string, string>;
 }
@@ -138,10 +140,16 @@ function monthTicks(dates: string[], maxTicks: number): { index: number; label: 
     });
 }
 
+/** How a band key reads: `.ts` for extensions, the value itself for other dimensions. */
+export function keyLabel(key: string, by = "ext"): string {
+  return key === OTHERS || by !== "ext" ? key : `.${key}`;
+}
+
 /** "12 extensions: .yml, .json, .scss and 9 more"; the count alone when `listed` is 0. */
-export function othersSummary(others: string[], listed: number): string {
-  const count = `${others.length} ${others.length === 1 ? "extension" : "extensions"}`;
-  const shown = others.slice(0, Math.max(0, listed)).map((ext) => `.${ext}`);
+export function othersSummary(others: string[], listed: number, by = "ext"): string {
+  const noun = by === "ext" ? "extension" : by;
+  const count = `${others.length} ${others.length === 1 || noun.endsWith("s") ? noun : `${noun}s`}`;
+  const shown = others.slice(0, Math.max(0, listed)).map((key) => keyLabel(key, by));
   if (!shown.length) {
     return count;
   }
@@ -169,15 +177,42 @@ export function stepEdge(ys: number[], end: (i: number) => number): string {
   return d;
 }
 
+/** The days with their counts summed up to the dimension `by`. */
+export function daysBy(dataset: Dataset, by: string): DayRecord[] {
+  const names = dimensionNames(dataset.meta);
+  // Carried days share their counts with the day they carry, so each is summed up once
+  const summed = new Map<Record<string, number>, Record<string, number>>();
+  return dataset.days.map((day) => {
+    let counts = summed.get(day.counts);
+    if (!counts) {
+      counts = project(day.counts, names, [by]);
+      summed.set(day.counts, counts);
+    }
+    return counts === day.counts ? day : { ...day, counts };
+  });
+}
+
 export function renderSvg(dataset: Dataset, options: SvgOptions): string {
-  const { days } = dataset;
+  const by = options.by ?? "ext";
+  const days = daysBy(dataset, by);
   if (days.length === 0) {
     throw new Error("No data to render");
   }
   const bands = computeBands(days, options);
   const base = PALETTES[options.theme === "dark" ? "dark" : "light"];
   const scheme = options.theme === "dark" ? "dark" : "light";
-  const color = (s: Scheme, k: number) => bandColor(bands.keys[k], s, PALETTES[s], options.colors);
+  // GitHub's language colors only mean something for extensions. Other keys take the palette's
+  // colors in the order of their names: distinct, and independent of their size.
+  const slots = new Map(
+    by === "ext"
+      ? []
+      : [...bands.keys]
+          .filter((key) => key !== OTHERS)
+          .sort()
+          .map((key, i) => [key, i]),
+  );
+  const color = (s: Scheme, k: number) =>
+    bandColor(bands.keys[k], s, PALETTES[s], options.colors, slots.get(bands.keys[k]));
   const W = options.width;
   const H = options.height;
   const pad = 16;
@@ -199,10 +234,10 @@ export function renderSvg(dataset: Dataset, options: SvgOptions): string {
   let ly = 74;
   for (let k = 0; k < bands.keys.length; k++) {
     const key = bands.keys[k];
-    const label = key === OTHERS ? key : `.${key}`;
+    const label = keyLabel(key, by);
     let value = compact(bands.values[bands.values.length - 1][k]);
     if (key === OTHERS && bands.others.length) {
-      value += ` · ${othersSummary(bands.others, options.othersListed)}`;
+      value += ` · ${othersSummary(bands.others, options.othersListed, by)}`;
     }
     const width = 10 + 6 + (label.length + value.length + 1) * 6.6 + 16;
     if (lx + width > W - pad) {
@@ -300,7 +335,7 @@ export function renderSvg(dataset: Dataset, options: SvgOptions): string {
         ...bands.keys
           .map((key, k) => ({ key, v: bands.values[i][k] }))
           .reverse()
-          .map(({ key, v }) => `${key === OTHERS ? key : `.${key}`} ${full(v)}`),
+          .map(({ key, v }) => `${keyLabel(key, by)} ${full(v)}`),
       ];
       return `<rect x="${r1(x(i))}" y="${r1(top)}" width="${r1(colW)}" height="${r1(
         bottom - top,

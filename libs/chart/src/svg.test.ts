@@ -44,6 +44,13 @@ describe("othersSummary", () => {
     expect(othersSummary(["yml"], 3)).toBe("1 extension: .yml");
     expect(othersSummary(["yml", "json"], 0)).toBe("2 extensions");
   });
+
+  test("other dimensions use their name and plain values", () => {
+    expect(othersSummary(["packages/a", "packages/b"], 1, "package")).toBe(
+      "2 packages: packages/a and 1 more",
+    );
+    expect(othersSummary(["docs"], 1, "layer")).toBe("1 layer: docs");
+  });
 });
 
 describe("compact", () => {
@@ -62,8 +69,8 @@ describe("renderSvg", () => {
   const days = (count: number): DayRecord[] =>
     Array.from({ length: count }, (_, i) => {
       const date = new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10);
-      const byExt = { ts: 100 + i, md: 50 };
-      return { date, commit: `c${i}`, carried: i % 3 === 1, total: 150 + i, byExt };
+      const counts = { ts: 100 + i, md: 50 };
+      return { date, commit: `c${i}`, carried: i % 3 === 1, total: 150 + i, counts };
     });
   const options: SvgOptions = {
     width: 1200,
@@ -83,12 +90,12 @@ describe("renderSvg", () => {
   });
 
   test("a band's color follows its extension, not its rank", () => {
-    const day = (byExt: Record<string, number>): DayRecord => ({
+    const day = (counts: Record<string, number>): DayRecord => ({
       date: "2026-01-01",
       commit: "c",
       carried: false,
-      total: Object.values(byExt).reduce((a, b) => a + b, 0),
-      byExt,
+      total: Object.values(counts).reduce((a, b) => a + b, 0),
+      counts,
     });
     const legendFill = (svg: string, ext: string) =>
       new RegExp(`fill="(#[0-9a-f]{6})"/>\\s*<text[^>]*><tspan[^>]*>\\.${ext}<`).exec(svg)?.[1];
@@ -134,7 +141,7 @@ describe("renderSvg", () => {
           commit: "c",
           carried: false,
           total: 1000,
-          byExt: { ts: 900, yml: 50, json: 30, scss: 15, sh: 5 },
+          counts: { ts: 900, yml: 50, json: 30, scss: 15, sh: 5 },
         },
       ],
     };
@@ -144,6 +151,40 @@ describe("renderSvg", () => {
     expect(render(dataset, { threshold: 0.1, othersListed: 0 })).toContain(
       ">100 · 4 extensions</tspan>",
     );
+  });
+
+  test("bands by another dimension: summed up, named as they are, no language colors", () => {
+    const meta = {
+      version: 2,
+      paths: [],
+      dimensions: [{ name: "package", dirs: ["packages/*"] }, { name: "ext" }],
+    } as unknown as Dataset["meta"];
+    const counts = { "go\u0000ts": 60, "go\u0000md": 10, "web\u0000ts": 30 };
+    const dataset = {
+      meta,
+      days: [{ date: "2026-01-01", commit: "c", carried: false, total: 100, counts }],
+    };
+
+    const byPackage = render(dataset, { by: "package", theme: "light" });
+    expect(byPackage).toContain(">go</tspan> <tspan");
+    expect(byPackage).toContain(">70</tspan>");
+    expect(byPackage).toContain(">web</tspan>");
+    // A package named like a language does not get that language's color; packages get distinct
+    // palette colors in the order of their names
+    expect(byPackage).not.toContain("#00add8");
+    const fill = (svg: string, label: string) =>
+      new RegExp(`fill="(#[0-9a-f]{6})"/>\\s*<text[^>]*><tspan[^>]*>${label}<`).exec(svg)?.[1];
+    expect(fill(byPackage, "go")).toBeDefined();
+    expect(fill(byPackage, "go")).not.toBe(fill(byPackage, "web"));
+    const swapped = { ...dataset.days[0], counts: { "go\u0000ts": 10, "web\u0000ts": 90 } };
+    const webFirst = render({ meta, days: [swapped] }, { by: "package", theme: "light" });
+    expect(fill(webFirst, "go")).toBe(fill(byPackage, "go"));
+
+    const byExt = render(dataset, { theme: "light" });
+    expect(byExt).toContain(">.ts</tspan>");
+    expect(byExt).toContain(">90</tspan>");
+
+    expect(() => render(dataset, { by: "author" })).toThrow('no dimension "author"');
   });
 
   test("escapes the title", () => {

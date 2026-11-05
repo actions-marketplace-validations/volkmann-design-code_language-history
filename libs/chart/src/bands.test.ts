@@ -3,12 +3,12 @@ import type { DayRecord } from "@language-history/format";
 import { computeBands, OTHERS } from "./bands";
 
 let n = 0;
-const day = (byExt: Record<string, number>): DayRecord => ({
+const day = (counts: Record<string, number>): DayRecord => ({
   date: `2026-01-${String(++n).padStart(2, "0")}`,
   commit: `c${n}`,
   carried: false,
-  total: Object.values(byExt).reduce((sum, v) => sum + v, 0),
-  byExt,
+  total: Object.values(counts).reduce((sum, v) => sum + v, 0),
+  counts,
 });
 
 describe("computeBands", () => {

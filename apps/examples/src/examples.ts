@@ -141,7 +141,7 @@ async function measure(example: Example): Promise<Benchmark> {
 
   const dataset = parseDataset(await readFile(data, "utf8"));
   const last = dataset.days[dataset.days.length - 1];
-  const extensions = new Set(dataset.days.flatMap((day) => Object.keys(day.byExt)));
+  const extensions = new Set(dataset.days.flatMap((day) => Object.keys(day.counts)));
   const pack = await git(repo, "count-objects", "-v");
   const packKB = Number(/size-pack: (\d+)/.exec(pack)?.[1] ?? 0);
   return {

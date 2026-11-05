@@ -3,6 +3,8 @@ import { parseArgs } from "node:util";
 import { MAX_BANDS } from "@language-history/chart";
 import { renderFiles } from "@language-history/chart/files";
 import { collect, DEFAULT_ALIASES } from "@language-history/collect";
+import { toCsv } from "@language-history/format";
+import { readDataset } from "@language-history/format/file";
 import {
   collectOptions,
   loadSettings,
@@ -16,6 +18,7 @@ const HELP = `language-history: lines of code per file extension over time
 Usage:
   language-history collect [options]   Measure each day's last commit, write JSONL (incremental)
   language-history render  [options]   Turn the JSONL into a stacked column chart (SVG and/or PNG)
+  language-history export  [options]   Write the data as CSV, one row per day and column per key
 
 Common:
   -c, --config <file>      JSON file with any of the options below (CLI flags win)
@@ -34,11 +37,13 @@ collect:
       --no-default-aliases Drop the built-in aliases (${Object.entries(DEFAULT_ALIASES)
         .map(([a, b]) => `${a}→${b}`)
         .join(", ")})
+      Splits by package or folder ("dimensions") are set in the config file, see the README.
       --until <date>       Fill days up to YYYY-MM-DD or "today" (default: day of the newest commit)
       --full               Ignore existing data and collect everything again
 
 render:
   -o, --out <file>         Output .svg or .png (repeatable; default: language-history.svg)
+      --by <dimension>     What the bands stand for: ext or a configured dimension (default: ext)
       --threshold <share>  Own band once an extension's peak reaches this share of the peak total (default: 0.03)
       --max-bands <n>      Most named bands before the rest folds into Others (default/max: ${MAX_BANDS})
       --others-listed <n>  Extensions inside Others named in the legend, after their count (default: 3)
@@ -49,6 +54,10 @@ render:
       --no-tooltips        Omit the per-day hover tooltips (smaller SVG)
       --color <ext=#hex>   Band color for an extension or Others, e.g. ts=#3178c6 (repeatable;
                            default: GitHub's language colors)
+
+export:
+  -o, --out <file>         CSV file (default: standard output)
+      --by <dims>          Sum up to these dimensions, comma-separated (default: all of them)
 `;
 
 const { values, positionals } = parseArgs({
@@ -70,6 +79,7 @@ const { values, positionals } = parseArgs({
     until: { type: "string" },
     full: { type: "boolean" },
     out: { type: "string", short: "o", multiple: true },
+    by: { type: "string" },
     threshold: { type: "string" },
     "max-bands": { type: "string" },
     "others-listed": { type: "string" },
@@ -117,6 +127,7 @@ const flags = validateSettings(
     until: values.until,
     full: values.full,
     out: values.out,
+    by: values.by,
     threshold: num(values.threshold),
     maxBands: num(values["max-bands"]),
     othersListed: num(values["others-listed"]),
@@ -138,6 +149,23 @@ if (command === "collect") {
   await collect(collectOptions(settings, log));
 } else if (command === "render") {
   await renderFiles(renderOptions(settings, log));
+} else if (command === "export") {
+  const { input } = renderOptions(settings, log);
+  const csv = toCsv(await readDataset(input), list(values.by ? [values.by] : undefined));
+  // Only an -o given here: `out` in the config file names the charts
+  const out = values.out?.[0];
+  if (out) {
+    await Bun.write(out, csv);
+    log(`Wrote ${out}`);
+  } else {
+    // A reader that stops early (`| head`) is fine
+    process.stdout.on("error", (error: NodeJS.ErrnoException) => {
+      if (error.code !== "EPIPE") {
+        throw error;
+      }
+    });
+    process.stdout.write(csv);
+  }
 } else {
   console.error(`Unknown command "${command}"\n\n${HELP}`);
   process.exit(1);

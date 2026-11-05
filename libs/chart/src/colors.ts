@@ -19,15 +19,17 @@ export interface SchemeColors {
 const MIN_CONTRAST: Record<Scheme, number> = { light: 1.2, dark: 3 };
 
 /**
- * The color of an extension's band: the override if there is one (used as is, in both schemes),
- * else GitHub's language color, else a fallback chosen by the extension's name. The same
- * extension gets the same color in every chart, whatever its rank.
+ * The color of a band: the override if there is one (used as is, in both schemes), else the
+ * palette color at `slot` when given (keys that aren't extensions), else GitHub's language color,
+ * else a fallback chosen by the extension's name. The same extension gets the same color in every
+ * chart, whatever its rank.
  */
 export function bandColor(
   key: string,
   scheme: Scheme,
   palette: SchemeColors,
   overrides: Record<string, string> = {},
+  slot?: number,
 ): string {
   const override = overrides[key];
   if (override) {
@@ -36,9 +38,12 @@ export function bandColor(
   if (key === OTHERS) {
     return palette.others;
   }
-  const github = LINGUIST_COLORS[key];
-  if (github) {
-    return withContrast(github, palette.surface, MIN_CONTRAST[scheme]);
+  if (slot !== undefined) {
+    return palette.series[slot % palette.series.length];
+  }
+  const language = LINGUIST_COLORS[key];
+  if (language) {
+    return withContrast(language, palette.surface, MIN_CONTRAST[scheme]);
   }
   return palette.series[nameHash(key) % palette.series.length];
 }
