@@ -4,7 +4,7 @@ import { MAX_BANDS } from "@language-history/chart";
 import { renderFiles } from "@language-history/chart/files";
 import { collect, DEFAULT_ALIASES } from "@language-history/collect";
 import { toCsv } from "@language-history/format";
-import { readDataset } from "@language-history/format/file";
+import { readExistingDataset } from "@language-history/format/file";
 import {
   collectOptions,
   loadSettings,
@@ -112,61 +112,71 @@ const pairs = (values: string[] | undefined) =>
     ? Object.fromEntries(values.map((pair) => pair.split("=").map((s) => s.trim())))
     : undefined;
 
-const flags = validateSettings(
-  {
-    data: values.data,
-    repo: values.repo,
-    ref: values.ref,
-    tz: values.tz,
-    paths: values.path,
-    linguist: values.linguist,
-    exclude: values.exclude,
-    excludeExt: list(values["exclude-ext"]),
-    aliases: pairs(values.alias),
-    defaultAliases: values["default-aliases"],
-    until: values.until,
-    full: values.full,
-    out: values.out,
-    by: values.by,
-    threshold: num(values.threshold),
-    maxBands: num(values["max-bands"]),
-    othersListed: num(values["others-listed"]),
-    width: num(values.width),
-    height: num(values.height),
-    theme: values.theme,
-    title: values.title,
-    tooltips: values.tooltips,
-    colors: pairs(values.color),
-    from: values.from,
-    to: values.to,
-  },
-  "flags",
-);
-const settings = mergeSettings(await loadSettings(values.config), flags);
-const log = (message: string) => console.error(message);
+async function run(): Promise<void> {
+  const flags = validateSettings(
+    {
+      data: values.data,
+      repo: values.repo,
+      ref: values.ref,
+      tz: values.tz,
+      paths: values.path,
+      linguist: values.linguist,
+      exclude: values.exclude,
+      excludeExt: list(values["exclude-ext"]),
+      aliases: pairs(values.alias),
+      defaultAliases: values["default-aliases"],
+      until: values.until,
+      full: values.full,
+      out: values.out,
+      by: values.by,
+      threshold: num(values.threshold),
+      maxBands: num(values["max-bands"]),
+      othersListed: num(values["others-listed"]),
+      width: num(values.width),
+      height: num(values.height),
+      theme: values.theme,
+      title: values.title,
+      tooltips: values.tooltips,
+      colors: pairs(values.color),
+      from: values.from,
+      to: values.to,
+    },
+    "flags",
+  );
+  const settings = mergeSettings(await loadSettings(values.config), flags);
+  const log = (message: string) => console.error(message);
 
-if (command === "collect") {
-  await collect(collectOptions(settings, log));
-} else if (command === "render") {
-  await renderFiles(renderOptions(settings, log));
-} else if (command === "export") {
-  const { input } = renderOptions(settings, log);
-  const csv = toCsv(await readDataset(input), list(values.by ? [values.by] : undefined));
-  // Only an -o given here: `out` in the config file names the charts
-  const out = values.out?.[0];
-  if (out) {
-    await Bun.write(out, csv);
-    log(`Wrote ${out}`);
+  if (command === "collect") {
+    await collect(collectOptions(settings, log));
+  } else if (command === "render") {
+    await renderFiles(renderOptions(settings, log));
+  } else if (command === "export") {
+    const { input } = renderOptions(settings, log);
+    const csv = toCsv(await readExistingDataset(input), list(values.by ? [values.by] : undefined));
+    // Only an -o given here: `out` in the config file names the charts
+    const out = values.out?.[0];
+    if (out) {
+      await Bun.write(out, csv);
+      log(`Wrote ${out}`);
+    } else {
+      // A reader that stops early (`| head`) is fine
+      process.stdout.on("error", (error: NodeJS.ErrnoException) => {
+        if (error.code !== "EPIPE") {
+          throw error;
+        }
+      });
+      process.stdout.write(csv);
+    }
   } else {
-    // A reader that stops early (`| head`) is fine
-    process.stdout.on("error", (error: NodeJS.ErrnoException) => {
-      if (error.code !== "EPIPE") {
-        throw error;
-      }
-    });
-    process.stdout.write(csv);
+    console.error(`Unknown command "${command}"\n\n${HELP}`);
+    process.exit(1);
   }
-} else {
-  console.error(`Unknown command "${command}"\n\n${HELP}`);
+}
+
+// A user's mistake (missing data, a bad setting) is one line, not a stack trace
+try {
+  await run();
+} catch (error) {
+  console.error(`language-history: ${error instanceof Error ? error.message : error}`);
   process.exit(1);
 }

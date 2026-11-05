@@ -1,4 +1,4 @@
-import { readDataset } from "@language-history/format/file";
+import { readExistingDataset } from "@language-history/format/file";
 import { svgToPng } from "./png";
 import { renderSvg, type SvgOptions } from "./svg";
 
@@ -15,7 +15,7 @@ export interface RenderOptions extends SvgOptions {
 
 /** Reads a dataset file and writes each output file. */
 export async function renderFiles(options: RenderOptions): Promise<void> {
-  const dataset = await readDataset(options.input);
+  const dataset = await readExistingDataset(options.input);
   dataset.days = dataset.days.filter(
     (day) => (!options.from || day.date >= options.from) && (!options.to || day.date <= options.to),
   );

@@ -10,6 +10,18 @@ export async function readDataset(path: string): Promise<Dataset> {
   return parseDataset(await file.text());
 }
 
+/** Reads a JSONL dataset that has to be there and hold days: what render and export need. */
+export async function readExistingDataset(path: string): Promise<Dataset> {
+  if (!(await Bun.file(path).exists())) {
+    throw new Error(`No data file at ${path}; run collect first`);
+  }
+  const dataset = await readDataset(path);
+  if (dataset.days.length === 0) {
+    throw new Error(`${path} holds no days; run collect first`);
+  }
+  return dataset;
+}
+
 /** Writes a JSONL dataset atomically (temp file + rename). */
 export async function writeDataset(path: string, dataset: Dataset): Promise<void> {
   const tmp = `${path}.tmp`;
