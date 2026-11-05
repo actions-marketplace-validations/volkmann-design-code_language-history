@@ -8,8 +8,13 @@ export interface Meta {
   exclude: string[];
   excludeExt: string[];
   aliases: Record<string, string>;
-  /** Skip files marked linguist-generated / linguist-vendored in the checkout's .gitattributes. */
+  /**
+   * Skip generated and vendored files: by the built-in path rules and by linguist-generated /
+   * linguist-vendored in the checkout's .gitattributes.
+   */
   linguist: boolean;
+  /** Version of the built-in path rules (0 when `linguist` is off), so changes trigger a full run. */
+  linguistRules: number;
   /**
    * The tool's own files (data, charts), repo-relative: never counted, and commits that change
    * only them don't count as commits.

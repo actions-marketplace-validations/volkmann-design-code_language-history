@@ -102,15 +102,18 @@ export async function attributesFingerprint(repo: string): Promise<string> {
   return parts.join(",");
 }
 
-/** Paths among `paths` that have any of `attrs` set, read from the working tree's .gitattributes. */
-export async function pathsWithAttributes(
+/**
+ * The `attrs` of each path, read from the working tree's .gitattributes: `true` when set,
+ * `false` when unset (`-attr` or `attr=false`), missing when the attributes don't mention it.
+ */
+export async function booleanAttributes(
   repo: string,
   attrs: string[],
   paths: string[],
-): Promise<Set<string>> {
-  const matches = new Set<string>();
+): Promise<Map<string, Record<string, boolean>>> {
+  const result = new Map<string, Record<string, boolean>>();
   if (paths.length === 0) {
-    return matches;
+    return result;
   }
   const out = decoder.decode(
     await run(
@@ -123,11 +126,20 @@ export async function pathsWithAttributes(
   const fields = out.split("\0");
   for (let i = 0; i + 2 < fields.length; i += 3) {
     const info = fields[i + 2];
-    if (info === "set" || info === "true") {
-      matches.add(fields[i]);
+    const value =
+      info === "set" || info === "true"
+        ? true
+        : info === "unset" || info === "false"
+          ? false
+          : null;
+    if (value === null) {
+      continue;
     }
+    const entry = result.get(fields[i]) ?? {};
+    entry[fields[i + 1]] = value;
+    result.set(fields[i], entry);
   }
-  return matches;
+  return result;
 }
 
 /** Streams blob contents in chunks of roughly `chunkBytes`, one `git cat-file --batch` per chunk. */

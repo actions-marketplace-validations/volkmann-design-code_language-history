@@ -39,21 +39,13 @@ export function extensionOf(path: string): string {
 export function createClassifier(options: ClassifyOptions): Classifier {
   const excludedExt = new Set(options.excludeExt.map((e) => e.replace(/^\./, "").toLowerCase()));
   const globs = options.exclude.map((pattern) => new Bun.Glob(pattern));
-  const cache = new Map<string, string | null>();
-
   return {
     classify(path) {
-      const cached = cache.get(path);
-      if (cached !== undefined) {
-        return cached;
-      }
       const raw = extensionOf(path);
       const ext = options.aliases[raw] ?? raw;
       const excluded =
         excludedExt.has(raw) || excludedExt.has(ext) || globs.some((glob) => glob.match(path));
-      const result = excluded ? null : ext;
-      cache.set(path, result);
-      return result;
+      return excluded ? null : ext;
     },
   };
 }

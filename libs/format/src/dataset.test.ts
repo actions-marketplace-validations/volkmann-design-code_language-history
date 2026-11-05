@@ -11,6 +11,7 @@ const meta: Meta = {
   excludeExt: [],
   aliases: { yaml: "yml" },
   linguist: true,
+  linguistRules: 1,
   own: [],
   attributes: "",
 };

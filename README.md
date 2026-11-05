@@ -5,9 +5,10 @@
 A stacked chart of the lines of code in a repository per file extension, one column per day, kept
 up to date by a scheduled job and embedded as an SVG that follows the viewer's light/dark mode.
 
-- **Counts what GitHub counts:** files marked `linguist-generated` or `linguist-vendored` in
-  `.gitattributes` are left out, like in GitHub's language statistics. One generated schema file
-  can otherwise outweigh all hand-written code.
+- **Leaves out generated and vendored files, like GitHub:** lock files, minified files,
+  dependency folders and anything marked `linguist-generated` or `linguist-vendored` in
+  `.gitattributes`. One lock file can otherwise outweigh years of hand-written code. See
+  [Counting](#counting) for how this differs from GitHub's language bar.
 - **One value per calendar day:** the last commit of each day on the branch's first-parent
   history, in a time zone you choose. Days without commits carry the previous value over.
 - **Data first:** `collect` writes plain JSONL, `render` turns it into SVG or PNG. Use either.
@@ -93,7 +94,7 @@ and inputs win over it. Unknown keys are an error.
 | `ref` | `HEAD` | Branch or ref whose first-parent history is measured |
 | `tz` | the machine's | IANA time zone that defines a day |
 | `paths` | all | Only count these paths (git pathspecs) |
-| `linguist` | `true` | Skip `linguist-generated` / `linguist-vendored` files |
+| `linguist` | `true` | Skip generated and vendored files: built-in rules and `.gitattributes` (see [Counting](#counting)) |
 | `exclude` | | Globs to skip, e.g. `**/generated/**` |
 | `excludeExt` | | Extensions to skip, e.g. `["svg", "json"]` |
 | `aliases` | see [Counting](#counting) | Count one extension as another, e.g. `{ "tsx": "ts" }` |
@@ -125,7 +126,7 @@ For example:
 ## Data
 
 ```jsonl
-{"meta":{"tool":"language-history","version":1,"ref":"main","tz":"Europe/Berlin","paths":[],"exclude":[],"excludeExt":[],"aliases":{"yaml":"yml"},"linguist":true,"own":["language-history.jsonl","language-history.svg"],"attributes":".gitattributes:1234"}}
+{"meta":{"tool":"language-history","version":1,"ref":"main","tz":"Europe/Berlin","paths":[],"exclude":[],"excludeExt":[],"aliases":{"yaml":"yml"},"linguist":true,"linguistRules":1,"own":["language-history.jsonl","language-history.svg"],"attributes":".gitattributes:1234"}}
 {"date":"2026-01-04","commit":"3f2a…","carried":false,"total":5210,"byExt":{"ts":4100,"md":1110}}
 {"date":"2026-01-05","commit":"3f2a…","carried":true,"total":5210,"byExt":{"ts":4100,"md":1110}}
 ```
@@ -142,13 +143,25 @@ For example:
 - Read straight from git objects (`ls-tree` + `cat-file --batch`), no checkout.
 - A day is the committer date in `--tz`, by default the machine's time zone (UTC on GitHub
   runners).
-- `linguist-generated` / `linguist-vendored` files are skipped (`--no-linguist` counts them). The
-  checkout's `.gitattributes` apply to every day, so marking a file today removes it from the
-  whole history.
+- Generated and vendored files are skipped (`--no-linguist` counts them):
+  - by built-in path rules modelled on [GitHub Linguist](https://github.com/github-linguist/linguist)'s:
+    lock files (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Cargo.lock`, `go.sum`, …),
+    minified files and source maps, protobuf and GraphQL codegen output, and dependency or build
+    folders (`node_modules/`, `vendor/`, `third_party/`, `dist/`, `.yarn/releases/`, Gradle and
+    Maven wrappers, …). The full list is in
+    [`libs/collect/src/linguist.ts`](libs/collect/src/linguist.ts).
+  - by `linguist-generated` / `linguist-vendored` in `.gitattributes`, which also wins over the
+    built-in rules in the other direction: `vendor/** -linguist-vendored` counts a folder again.
+  - The checkout's `.gitattributes` apply to every day, so marking a file today removes it from
+    the whole history.
 - The tool's own files (the data file and the charts) are never counted, and a commit that only
   changes them is not a commit day, so updating the chart doesn't change the chart.
 - Nothing else is excluded by default. Scope with `--path` (git pathspecs), skip with `--exclude`
   (globs) and `--exclude-ext`.
+- How this differs from GitHub's language bar: GitHub measures bytes per language, counts only
+  programming and markup languages (no JSON, YAML or Markdown), also leaves out documentation
+  (`docs/`, …) and recognizes generated files by their content. language-history counts
+  non-blank lines per file extension, of every text file, and only looks at paths.
 - Extension = text after the last dot, lower-cased; dotfiles count as their name (`.gitignore` →
   `gitignore`), files without one as `(none)`. Default aliases (`mjs`/`cjs` → `js`, `mts`/`cts` →
   `ts`, `yaml` → `yml`, …) can be extended (`--alias tsx=ts`), undone one by one

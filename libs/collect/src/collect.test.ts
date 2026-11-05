@@ -222,6 +222,31 @@ describe("collect", () => {
     expect(counted.meta?.attributes).toBe("");
   });
 
+  test("built-in rules skip lock files and dependency folders, .gitattributes overrides them", async () => {
+    const r = createRepo();
+    r.commit("2026-01-01T12:00:00Z", {
+      "a.ts": lines(1),
+      "yarn.lock": lines(50),
+      "node_modules/x/index.js": lines(20),
+      "web/vendor/lib.js": lines(3),
+      "app.min.js": lines(4),
+    });
+
+    const defaults = await r.collect();
+    expect(defaults.days[0].byExt).toEqual({ ts: 1 });
+    expect(defaults.meta?.linguistRules).toBeGreaterThan(0);
+
+    r.write({
+      ".gitattributes": "web/vendor/** -linguist-vendored\n*.min.js linguist-generated=false\n",
+    });
+    const overridden = await r.collect();
+    expect(overridden.days[0].byExt).toEqual({ js: 7, ts: 1 });
+
+    const off = await r.collect({ linguist: false });
+    expect(off.days[0].byExt).toEqual({ lock: 50, js: 27, ts: 1 });
+    expect(off.meta?.linguistRules).toBe(0);
+  });
+
   test("an incremental run gives the same result as a full run", async () => {
     const r = createRepo();
     r.commit("2026-01-01T12:00:00Z", { "a.ts": lines(1) });

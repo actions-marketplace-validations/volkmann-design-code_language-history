@@ -4,24 +4,36 @@ import { createClassifier } from "./classify";
 import { countNonBlankLines } from "./count";
 import {
   attributesFingerprint,
+  booleanAttributes,
   firstParentCommits,
   listBlobs,
-  pathsWithAttributes,
   readBlobs,
 } from "./git";
+import { LINGUIST_RULES, linguistDefaults } from "./linguist";
 
 const LINGUIST_ATTRIBUTES = ["linguist-generated", "linguist-vendored"];
 
 export interface CollectOptions {
   repo: string;
   out: string;
-  /** `attributes` is filled in here from the tip's .gitattributes. */
-  meta: Omit<Meta, "attributes">;
+  /** `attributes` and `linguistRules` are filled in here. */
+  meta: Omit<Meta, "attributes" | "linguistRules">;
   /** Last day to fill (YYYY-MM-DD); defaults to the day of the newest commit. */
   until?: string;
   /** Ignore existing data and collect everything again. */
   full: boolean;
   log: (message: string) => void;
+}
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+/**
+ * A copy of `text` that shares no memory with the string it was cut from. Paths come from
+ * splitting git's output for a whole tree; keeping a slice would keep all of that output alive.
+ */
+function detach(text: string): string {
+  return decoder.decode(encoder.encode(text));
 }
 
 export function dayFormatter(tz: string): (unixSeconds: number) => string {
@@ -54,7 +66,8 @@ export async function collect(options: CollectOptions): Promise<void> {
   // The checkout's .gitattributes decide for the whole history, so marking a file as generated
   // now removes it from past days too.
   const attributes = options.meta.linguist ? await attributesFingerprint(repo) : "";
-  const meta: Meta = { ...options.meta, attributes };
+  const linguistRules = options.meta.linguist ? LINGUIST_RULES : 0;
+  const meta: Meta = { ...options.meta, linguistRules, attributes };
   const lastCommitOfDay = new Map<string, string>();
   for (const commit of commits) {
     const day = toDay(commit.time);
@@ -82,25 +95,33 @@ export async function collect(options: CollectOptions): Promise<void> {
   const classifier = createClassifier(meta);
   const own = new Set(meta.own);
   const linesByBlob = new Map<string, number | null>();
-  const linguistExcluded = new Map<string, boolean>();
+  // Per path: the extension it counts towards, or null when it is skipped.
+  const extByPath = new Map<string, string | null>();
+
+  async function classifyNew(paths: string[]): Promise<void> {
+    const attrs =
+      meta.linguist && attributes
+        ? await booleanAttributes(repo, LINGUIST_ATTRIBUTES, paths)
+        : undefined;
+    for (const path of paths) {
+      let ext = own.has(path) ? null : classifier.classify(path);
+      if (ext !== null && meta.linguist) {
+        const set = attrs?.get(path) ?? {};
+        const defaults = linguistDefaults(path);
+        const generated = set["linguist-generated"] ?? defaults.generated;
+        const vendored = set["linguist-vendored"] ?? defaults.vendored;
+        if (generated || vendored) {
+          ext = null;
+        }
+      }
+      extByPath.set(detach(path), ext);
+    }
+  }
 
   async function measure(sha: string): Promise<Record<string, number>> {
     const blobs = await listBlobs(repo, sha, meta.paths);
-    if (attributes) {
-      const unchecked = blobs
-        .map((blob) => blob.path)
-        .filter((path) => !linguistExcluded.has(path));
-      const marked = await pathsWithAttributes(repo, LINGUIST_ATTRIBUTES, unchecked);
-      for (const path of unchecked) {
-        linguistExcluded.set(path, marked.has(path));
-      }
-    }
-    const counted = blobs.filter(
-      (blob) =>
-        !own.has(blob.path) &&
-        !linguistExcluded.get(blob.path) &&
-        classifier.classify(blob.path) !== null,
-    );
+    await classifyNew(blobs.map((blob) => blob.path).filter((path) => !extByPath.has(path)));
+    const counted = blobs.filter((blob) => extByPath.get(blob.path) !== null);
     const unknown = new Map<string, number>();
     for (const blob of counted) {
       if (!linesByBlob.has(blob.sha)) {
@@ -115,8 +136,8 @@ export async function collect(options: CollectOptions): Promise<void> {
     const byExt: Record<string, number> = {};
     for (const blob of counted) {
       const lines = linesByBlob.get(blob.sha);
-      const ext = classifier.classify(blob.path);
-      if (!lines || ext === null) {
+      const ext = extByPath.get(blob.path);
+      if (!lines || !ext) {
         continue; // binary, empty or excluded
       }
       byExt[ext] = (byExt[ext] ?? 0) + lines;

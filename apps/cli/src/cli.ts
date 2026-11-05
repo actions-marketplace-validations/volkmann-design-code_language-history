@@ -26,7 +26,7 @@ collect:
       --ref <ref>          Branch/ref whose first-parent history is measured (default: HEAD)
       --tz <zone>          IANA time zone that defines a day (default: this machine's, ${Intl.DateTimeFormat().resolvedOptions().timeZone})
       --path <pathspec>    Only count these paths, git pathspec syntax (repeatable)
-      --no-linguist        Also count files marked linguist-generated / linguist-vendored
+      --no-linguist        Also count generated and vendored files (lock files, node_modules/, ...)
                            (default: skipped, the checkout's .gitattributes apply to all days)
       --exclude <glob>     Skip files matching this glob, e.g. '**/generated/**' (repeatable)
       --exclude-ext <ext>  Skip these extensions, comma-separated or repeated (e.g. svg,json)
