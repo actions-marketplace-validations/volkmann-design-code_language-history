@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Deliberately shallow: the action has to fetch the rest itself
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: run
         uses: ./
         with:

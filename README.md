@@ -13,9 +13,8 @@ up to date by a scheduled job and embedded as an SVG that follows the viewer's l
   history, in a time zone you choose. Days without commits carry the previous value over.
 - **Data first:** `collect` writes plain JSONL, `render` turns it into SVG or PNG. Use either.
 - **Fast and incremental:** reads git objects directly, caches counts per blob, and only measures
-  new days. A 5,000-commit history takes ~40 s once, a daily update well under a second.
-
-> Status: pre-release, no tagged version yet. Pin the action to a commit until `v1` exists.
+  new days. Angular's twelve years take under 3 minutes once, a daily update under a second
+  (see [Benchmarks](#benchmarks)).
 
 ## Examples
 
@@ -67,10 +66,10 @@ jobs:
   chart:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # every day's commit has to be readable
-      - uses: volkmann-design-code/language-history@<commit>
+      - uses: volkmann-design-code/language-history@v1
         with:
           tz: Europe/Berlin
           data: docs/language-history.jsonl
@@ -244,9 +243,16 @@ bun run typecheck      # nx run-many -t typecheck
 bun run test           # nx run-many -t test:unit
 ```
 
+## Versions
+
+`@v1` follows the newest 1.x release; pin `@v1.0.0` or a commit for an exact version. Within v1,
+the action's inputs and outputs, the config keys, the CLI flags and the JSONL format only change
+in compatible ways. A new release of the built-in rules for generated and vendored files can
+change what is counted; the next run then collects from scratch. Releases and their notes:
+[GitHub releases](https://github.com/volkmann-design-code/language-history/releases).
+
 ## Roadmap
 
-- `v1` release and Marketplace listing.
 - npm package with a bundled CLI (`bunx language-history`).
 - Web app: render any published JSONL, compare repositories.
 

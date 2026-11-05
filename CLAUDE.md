@@ -31,3 +31,6 @@ bun run examples            # re-measure the example repos (clones into the temp
   numbers taken from them.
 - Biome formats and lints (double quotes, block statements required); lefthook runs it on commit.
 - Changing the JSONL format means bumping `version` in `Meta` and handling older files.
+- Releases: push a tag `vX.Y.Z` on main; `.github/workflows/release.yml` runs the checks, creates
+  the GitHub release and moves the major tag (`v1`). Action inputs and outputs, config keys, CLI
+  flags and the JSONL format stay compatible within a major version.
