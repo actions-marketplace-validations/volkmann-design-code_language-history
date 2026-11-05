@@ -13,10 +13,12 @@
     "noEmit": true,
     "paths": {
       "@language-history/chart": ["./libs/chart/src/index.ts"],
+      "@language-history/chart/files": ["./libs/chart/src/files.ts"],
       "@language-history/chart/png": ["./libs/chart/src/png.ts"],
       "@language-history/collect": ["./libs/collect/src/index.ts"],
       "@language-history/format": ["./libs/format/src/index.ts"],
-      "@language-history/format/file": ["./libs/format/src/file.ts"]
+      "@language-history/format/file": ["./libs/format/src/file.ts"],
+      "@language-history/options": ["./libs/options/src/index.ts"]
     }
   }
 }

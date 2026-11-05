@@ -46,7 +46,7 @@ export async function collect(options: CollectOptions): Promise<void> {
   const toDay = dayFormatter(options.meta.tz);
 
   // Newest first, so the first commit seen per day is that day's last one.
-  const commits = await firstParentCommits(repo, options.meta.ref);
+  const commits = await firstParentCommits(repo, options.meta.ref, options.meta.own);
   if (commits.length === 0) {
     throw new Error(`No commits on ${options.meta.ref}`);
   }
@@ -80,6 +80,7 @@ export async function collect(options: CollectOptions): Promise<void> {
   }
 
   const classifier = createClassifier(meta);
+  const own = new Set(meta.own);
   const linesByBlob = new Map<string, number | null>();
   const linguistExcluded = new Map<string, boolean>();
 
@@ -95,7 +96,10 @@ export async function collect(options: CollectOptions): Promise<void> {
       }
     }
     const counted = blobs.filter(
-      (blob) => !linguistExcluded.get(blob.path) && classifier.classify(blob.path) !== null,
+      (blob) =>
+        !own.has(blob.path) &&
+        !linguistExcluded.get(blob.path) &&
+        classifier.classify(blob.path) !== null,
     );
     const unknown = new Map<string, number>();
     for (const blob of counted) {

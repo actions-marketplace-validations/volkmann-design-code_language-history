@@ -10,6 +10,11 @@ export interface Meta {
   aliases: Record<string, string>;
   /** Skip files marked linguist-generated / linguist-vendored in the checkout's .gitattributes. */
   linguist: boolean;
+  /**
+   * The tool's own files (data, charts), repo-relative: never counted, and commits that change
+   * only them don't count as commits.
+   */
+  own: string[];
   /** Fingerprint of the checkout's .gitattributes files, so edits to them trigger a full run. */
   attributes: string;
 }

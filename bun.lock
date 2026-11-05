@@ -15,6 +15,10 @@
         "typescript": "6.0.3",
       },
     },
+    "apps/action": {
+      "name": "@language-history/action",
+      "version": "0.0.0",
+    },
     "apps/cli": {
       "name": "@language-history/cli",
       "version": "0.0.0",
@@ -32,6 +36,10 @@
     },
     "libs/format": {
       "name": "@language-history/format",
+      "version": "0.0.0",
+    },
+    "libs/options": {
+      "name": "@language-history/options",
       "version": "0.0.0",
     },
   },
@@ -62,6 +70,8 @@
 
     "@jest/diff-sequences": ["@jest/diff-sequences@30.0.1", "", {}, "sha512-n5H8QLDJ47QqbCNn5SuFjCRDrOLEZ0h8vAHCK5RL9Ls7Xa8AQLa/YxAc9UjFqoEDM48muwtBGjtMY5cr0PLDCw=="],
 
+    "@language-history/action": ["@language-history/action@workspace:apps/action"],
+
     "@language-history/chart": ["@language-history/chart@workspace:libs/chart"],
 
     "@language-history/cli": ["@language-history/cli@workspace:apps/cli"],
@@ -69,6 +79,8 @@
     "@language-history/collect": ["@language-history/collect@workspace:libs/collect"],
 
     "@language-history/format": ["@language-history/format@workspace:libs/format"],
+
+    "@language-history/options": ["@language-history/options@workspace:libs/options"],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@0.2.4", "", { "dependencies": { "@emnapi/core": "^1.1.0", "@emnapi/runtime": "^1.1.0", "@tybys/wasm-util": "^0.9.0" } }, "sha512-9zESzOO5aDByvhIAsOy9TbpZ0Ur2AJbUI7UT73kcUTS2mxAMHOBaa1st/jAymNoCtvrit99kkzT1FZuXVcgfIQ=="],
 

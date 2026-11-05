@@ -6,6 +6,7 @@
   "description": "Stacked chart of a dataset: bands, SVG (browser-safe) and PNG",
   "exports": {
     ".": "./src/index.ts",
+    "./files": "./src/files.ts",
     "./png": "./src/png.ts"
   },
   "browserSafe": [

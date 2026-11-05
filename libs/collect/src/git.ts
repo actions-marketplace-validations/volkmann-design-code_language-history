@@ -29,10 +29,20 @@ async function run(repo: string, args: string[], input?: Uint8Array): Promise<Ui
 
 const decoder = new TextDecoder();
 
-/** Commits along the first-parent chain of `ref`, newest first. */
-export async function firstParentCommits(repo: string, ref: string): Promise<CommitRef[]> {
+/**
+ * Commits along the first-parent chain of `ref`, newest first. Commits that change nothing but
+ * `ignore` (repo-relative file paths) are left out.
+ */
+export async function firstParentCommits(
+  repo: string,
+  ref: string,
+  ignore: string[] = [],
+): Promise<CommitRef[]> {
+  const pathspecs = ignore.length
+    ? [":/", ...ignore.map((path) => `:(top,literal,exclude)${path}`)]
+    : [];
   const out = decoder.decode(
-    await run(repo, ["log", "--first-parent", "--format=%H %ct", ref, "--"]),
+    await run(repo, ["log", "--first-parent", "--format=%H %ct", ref, "--", ...pathspecs]),
   );
   return out
     .split("\n")

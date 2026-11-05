@@ -1,9 +1,15 @@
 #!/usr/bin/env bun
 import { parseArgs } from "node:util";
-import { MAX_BANDS, type Theme } from "@language-history/chart";
+import { MAX_BANDS } from "@language-history/chart";
+import { renderFiles } from "@language-history/chart/files";
 import { collect, DEFAULT_ALIASES } from "@language-history/collect";
-import type { Meta } from "@language-history/format";
-import { render } from "./render";
+import {
+  collectOptions,
+  loadSettings,
+  mergeSettings,
+  renderOptions,
+  validateSettings,
+} from "@language-history/options";
 
 const HELP = `language-history: lines of code per file extension over time
 
@@ -81,93 +87,50 @@ if (values.help || !command) {
   process.exit(command || values.help ? 0 : 1);
 }
 
-interface Config {
-  data?: string;
-  repo?: string;
-  ref?: string;
-  tz?: string;
-  paths?: string[];
-  linguist?: boolean;
-  exclude?: string[];
-  excludeExt?: string[];
-  aliases?: Record<string, string>;
-  defaultAliases?: boolean;
-  out?: string[];
-  threshold?: number;
-  maxBands?: number;
-  othersListed?: number;
-  width?: number;
-  height?: number;
-  theme?: Theme;
-  title?: string;
-  tooltips?: boolean;
-}
-
-const config: Config = values.config ? await Bun.file(values.config).json() : {};
-const log = (message: string) => console.error(message);
 const list = (items: string[] | undefined) =>
   items
     ?.flatMap((item) => item.split(","))
     .map((s) => s.trim())
     .filter(Boolean);
-const num = (value: string | undefined, fallback: number) =>
-  value === undefined ? fallback : Number(value);
-const today = () => new Intl.DateTimeFormat("en-CA").format(new Date());
-const data = values.data ?? config.data ?? "language-history.jsonl";
+const num = (value: string | undefined) => (value === undefined ? undefined : Number(value));
 
-if (command === "collect") {
-  const aliases: Record<string, string> = {
-    ...((values["default-aliases"] ?? config.defaultAliases ?? true) ? DEFAULT_ALIASES : {}),
-    ...config.aliases,
-    ...Object.fromEntries(
-      (values.alias ?? []).map((a) => a.split("=").map((s) => s.trim().replace(/^\./, ""))),
-    ),
-  };
-  for (const [from, to] of Object.entries(aliases)) {
-    if (from === to) {
-      delete aliases[from];
-    }
-  }
-
-  const meta: Omit<Meta, "attributes"> = {
-    tool: "language-history",
-    version: 1,
-    ref: values.ref ?? config.ref ?? "HEAD",
-    tz: values.tz ?? config.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-    paths: values.path ?? config.paths ?? [],
-    exclude: values.exclude ?? config.exclude ?? [],
-    excludeExt: list(values["exclude-ext"]) ?? config.excludeExt ?? [],
-    aliases: Object.fromEntries(Object.entries(aliases).sort()),
-    linguist: values.linguist ?? config.linguist ?? true,
-  };
-  await collect({
-    repo: values.repo ?? config.repo ?? ".",
-    out: data,
-    meta,
-    until: values.until === "today" ? today() : values.until,
-    full: values.full ?? false,
-    log,
-  });
-} else if (command === "render") {
-  const theme = (values.theme ?? config.theme ?? "auto") as Theme;
-  if (!["auto", "light", "dark"].includes(theme)) {
-    throw new Error(`Unknown theme ${theme}`);
-  }
-  await render({
-    input: data,
-    outputs: values.out ?? config.out ?? ["language-history.svg"],
-    threshold: num(values.threshold, config.threshold ?? 0.03),
-    maxBands: Math.min(MAX_BANDS, num(values["max-bands"], config.maxBands ?? MAX_BANDS)),
-    othersListed: num(values["others-listed"], config.othersListed ?? 3),
-    width: num(values.width, config.width ?? 1200),
-    height: num(values.height, config.height ?? 460),
-    theme,
-    title: values.title ?? config.title ?? "Lines of code",
-    tooltips: values.tooltips ?? config.tooltips ?? true,
+const flags = validateSettings(
+  {
+    data: values.data,
+    repo: values.repo,
+    ref: values.ref,
+    tz: values.tz,
+    paths: values.path,
+    linguist: values.linguist,
+    exclude: values.exclude,
+    excludeExt: list(values["exclude-ext"]),
+    aliases: values.alias
+      ? Object.fromEntries(values.alias.map((a) => a.split("=").map((s) => s.trim())))
+      : undefined,
+    defaultAliases: values["default-aliases"],
+    until: values.until,
+    full: values.full,
+    out: values.out,
+    threshold: num(values.threshold),
+    maxBands: num(values["max-bands"]),
+    othersListed: num(values["others-listed"]),
+    width: num(values.width),
+    height: num(values.height),
+    theme: values.theme,
+    title: values.title,
+    tooltips: values.tooltips,
     from: values.from,
     to: values.to,
-    log,
-  });
+  },
+  "flags",
+);
+const settings = mergeSettings(await loadSettings(values.config), flags);
+const log = (message: string) => console.error(message);
+
+if (command === "collect") {
+  await collect(collectOptions(settings, log));
+} else if (command === "render") {
+  await renderFiles(renderOptions(settings, log));
 } else {
   console.error(`Unknown command "${command}"\n\n${HELP}`);
   process.exit(1);

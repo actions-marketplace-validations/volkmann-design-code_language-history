@@ -1,0 +1,20 @@
+{
+  "name": "@language-history/options",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Settings from a config file plus overrides, turned into collect and render options",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "browserSafe": [],
+  "scripts": {
+    "test:unit": "bun test"
+  },
+  "sideEffects": false,
+  "nx": {
+    "targets": {
+      "typecheck": {}
+    }
+  }
+}

@@ -1,0 +1,33 @@
+name: Action
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Runs the action from this checkout on this repository, without committing
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      # Deliberately shallow: the action has to fetch the rest itself
+      - uses: actions/checkout@v4
+      - id: run
+        uses: ./
+        with:
+          out: language-history.svg, language-history.png
+          commit: false
+      - name: Check outputs
+        env:
+          TOTAL: ${{ steps.run.outputs.total }}
+          DATE: ${{ steps.run.outputs.date }}
+          CHANGED: ${{ steps.run.outputs.changed }}
+          COMMITTED: ${{ steps.run.outputs.committed }}
+        run: |
+          echo "total=$TOTAL date=$DATE changed=$CHANGED committed=$COMMITTED"
+          test "$TOTAL" -gt 0
+          test "$CHANGED" = true
+          test "$COMMITTED" = false
+          test -s language-history.jsonl
+          grep -q '<svg' language-history.svg
+          file language-history.png | grep -q 'PNG image'

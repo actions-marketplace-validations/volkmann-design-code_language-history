@@ -1,0 +1,86 @@
+name: language-history
+description: "GitHub's language bar over time, in your README: a daily stacked chart of lines of code per file extension"
+author: volkmann-design-code
+branding:
+  icon: bar-chart-2
+  color: blue
+
+inputs:
+  config:
+    description: JSON config file with any setting (see README); the inputs below override it
+    required: false
+    default: ""
+  data:
+    description: "JSONL data file, committed so the next run is incremental (default: language-history.jsonl)"
+    required: false
+    default: ""
+  out:
+    description: "Chart files (.svg or .png), comma- or newline-separated (default: language-history.svg)"
+    required: false
+    default: ""
+  ref:
+    description: "Branch or ref whose first-parent history is measured (default: the checked-out HEAD)"
+    required: false
+    default: ""
+  tz:
+    description: "IANA time zone that defines a day (default: the runner's, UTC on GitHub-hosted runners)"
+    required: false
+    default: ""
+  commit:
+    description: Commit and push the data and chart files when they changed
+    required: false
+    default: "true"
+  commit-message:
+    description: Message of that commit
+    required: false
+    default: "chore: update language history [skip ci]"
+  branch:
+    description: "Branch to push to (default: the branch the workflow runs on; pull requests are never pushed)"
+    required: false
+    default: ""
+
+outputs:
+  total:
+    description: Lines on the last day
+    value: ${{ steps.run.outputs.total }}
+  date:
+    description: Last day in the data (YYYY-MM-DD)
+    value: ${{ steps.run.outputs.date }}
+  changed:
+    description: Whether the data or chart files differ from what is committed
+    value: ${{ steps.run.outputs.changed }}
+  committed:
+    description: Whether they were committed and pushed
+    value: ${{ steps.run.outputs.committed }}
+  data:
+    description: Path of the data file
+    value: ${{ steps.run.outputs.data }}
+  outputs:
+    description: Paths of the chart files, comma-separated
+    value: ${{ steps.run.outputs.outputs }}
+
+runs:
+  using: composite
+  steps:
+    - id: bun
+      shell: bash
+      run: |
+        version=$(sed -n 's/.*"packageManager": *"bun@\([^"]*\)".*/\1/p' "$GITHUB_ACTION_PATH/package.json")
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: ${{ steps.bun.outputs.version }}
+    - shell: bash
+      run: bun install --frozen-lockfile --production --ignore-scripts --cwd "$GITHUB_ACTION_PATH"
+    - id: run
+      shell: bash
+      run: bun "$GITHUB_ACTION_PATH/apps/action/src/main.ts"
+      env:
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_DATA: ${{ inputs.data }}
+        INPUT_OUT: ${{ inputs.out }}
+        INPUT_REF: ${{ inputs.ref }}
+        INPUT_TZ: ${{ inputs.tz }}
+        INPUT_COMMIT: ${{ inputs.commit }}
+        INPUT_COMMIT_MESSAGE: ${{ inputs.commit-message }}
+        INPUT_BRANCH: ${{ inputs.branch }}

@@ -22,6 +22,11 @@ bun language-history --help # the CLI from source
 - Entry points under `browserSafe` must stay free of `node:*`, `Bun.*` and non-browser entry
   points of other packages: they are meant for a future web app.
 - Libraries don't depend on apps. `format` depends on nothing; `collect` and `chart` depend on
-  `format` only.
+  `format` only; `options` ties settings to `collect` and `chart`. Apps (`cli`, `action`) only
+  wire libraries together.
+- `action.yml` has to stay at the repo root (`uses: volkmann-design-code/language-history@…`); it
+  only installs Bun and production deps and runs `apps/action/src/main.ts`.
+- Nothing from private or client projects goes into this public repo: no names, paths, data or
+  numbers taken from them.
 - Biome formats and lints (double quotes, block statements required); lefthook runs it on commit.
 - Changing the JSONL format means bumping `version` in `Meta` and handling older files.

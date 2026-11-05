@@ -80,6 +80,7 @@ function createRepo() {
           excludeExt: [],
           aliases: {},
           linguist: true,
+          own: [],
           ...meta,
         },
         until: options.until,
@@ -238,6 +239,25 @@ describe("collect", () => {
     expect(incremental.days.find((d) => d.date === "2026-01-03")?.commit).toBe(laterSameDay);
     expect(incremental.days).toEqual(full.days);
     expect(incremental.meta).toEqual(full.meta);
+  });
+
+  test("its own files are not counted, and commits touching only them are not commit days", async () => {
+    const r = createRepo();
+    const day1 = r.commit("2026-01-01T12:00:00Z", { "a.ts": lines(1) });
+    r.commit("2026-01-02T12:00:00Z", {
+      "docs/history.jsonl": lines(50),
+      "docs/chart.svg": lines(9),
+    });
+    const day3 = r.commit("2026-01-03T12:00:00Z", { "a.ts": lines(2), "docs/chart.svg": lines(8) });
+    r.commit("2026-01-04T12:00:00Z", { "docs/history.jsonl": lines(60) });
+
+    const { days } = await r.collect({ own: ["docs/chart.svg", "docs/history.jsonl"] });
+
+    expect(days.map((d) => [d.date, d.commit, d.carried, d.byExt])).toEqual([
+      ["2026-01-01", day1, false, { ts: 1 }],
+      ["2026-01-02", day1, true, { ts: 1 }],
+      ["2026-01-03", day3, false, { ts: 2 }],
+    ]);
   });
 
   test("changed settings or attributes start from scratch", async () => {
