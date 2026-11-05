@@ -23,48 +23,17 @@
       "measuredDays": 328,
       "lines": 340283,
       "extensions": 30,
-      "dataKB": 1042,
-      "chartKB": 38,
+      "dataKB": 55,
       "full": {
-        "seconds": 8.84,
-        "peakMB": 168
+        "seconds": 10.71,
+        "peakMB": 153
       },
       "incremental": {
-        "seconds": 0.18,
-        "peakMB": 90
+        "seconds": 0.21,
+        "peakMB": 87
       },
       "render": {
-        "seconds": 0.02,
-        "peakMB": 47
-      }
-    },
-    {
-      "name": "tauri",
-      "title": "tauri-apps/tauri",
-      "url": "https://github.com/tauri-apps/tauri.git",
-      "ref": "dev",
-      "commit": "7a5032687fa03c22bfe1dd2411ea60defcae3fca",
-      "commits": 6403,
-      "firstParentCommits": 5187,
-      "packMB": 102,
-      "firstDay": "2019-07-13",
-      "lastDay": "2026-11-05",
-      "days": 2673,
-      "measuredDays": 1388,
-      "lines": 157995,
-      "extensions": 69,
-      "dataKB": 1431,
-      "chartKB": 127,
-      "full": {
-        "seconds": 27.78,
-        "peakMB": 226
-      },
-      "incremental": {
-        "seconds": 0.16,
-        "peakMB": 95
-      },
-      "render": {
-        "seconds": 0.03,
+        "seconds": 0.1,
         "peakMB": 52
       }
     },
@@ -83,19 +52,18 @@
       "measuredDays": 3093,
       "lines": 1666671,
       "extensions": 89,
-      "dataKB": 2455,
-      "chartKB": 275,
+      "dataKB": 951,
       "full": {
-        "seconds": 158.02,
-        "peakMB": 347
+        "seconds": 156.92,
+        "peakMB": 449
       },
       "incremental": {
-        "seconds": 0.8,
-        "peakMB": 312
+        "seconds": 0.87,
+        "peakMB": 367
       },
       "render": {
-        "seconds": 0.04,
-        "peakMB": 59
+        "seconds": 0.12,
+        "peakMB": 130
       }
     }
   ]

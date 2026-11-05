@@ -1,3 +1,6 @@
 {
-  "excludeExt": ["dic"]
+  "excludeExt": ["dic"],
+  "dimensions": {
+    "package": { "dirs": "packages/*" }
+  }
 }

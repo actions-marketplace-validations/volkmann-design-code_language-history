@@ -24,33 +24,32 @@ up to date by a scheduled job and embedded as an SVG that follows the viewer's l
 
 <!-- examples:start -->
 
+Each repository is collected once, with its config file; every chart renders that data with its own `by`. The settings are below each chart.
+
 ### [getkirby/kirby](https://github.com/getkirby/kirby)
 
-![getkirby/kirby: lines of code per file extension over time](examples/kirby.svg)
+![getkirby/kirby: per extension](examples/kirby.svg)<br>
+<sub><b>Per extension</b> · `{ "exclude": ["cacert.pem"] }`</sub>
 
-With [a config](examples/kirby.config.json): skips `cacert.pem`, a copied-in certificate bundle.
-
-### [tauri-apps/tauri](https://github.com/tauri-apps/tauri)
-
-![tauri-apps/tauri: lines of code per file extension over time](examples/tauri.svg)
-
-With [a config](examples/tauri.config.json): skips the license texts (`LICENSE-APACHE-2.0` would count as `.0`), generated test snapshots (`.snap`) and cargo-vet's `supply-chain/` data.
+![getkirby/kirby: tests vs. code](examples/kirby-kind.svg)<br>
+<sub><b>Tests vs. code</b> · `{ "exclude": ["cacert.pem"], "dimensions": { "kind": { "groups": { "tests": ["tests/**", "**/*.test.js", "**/*.spec.js"], "code": "**" } } }, "by": "kind" }`</sub>
 
 ### [angular/angular](https://github.com/angular/angular)
 
-![angular/angular: lines of code per file extension over time](examples/angular.svg)
+![angular/angular: per extension](examples/angular.svg)<br>
+<sub><b>Per extension</b> · `{ "excludeExt": ["dic"] }`</sub>
 
-With [a config](examples/angular.config.json): skips `.dic` files, a spell-check word list for the docs (2022–2024).
+![angular/angular: per package](examples/angular-package.svg)<br>
+<sub><b>Per package</b> · `{ "excludeExt": ["dic"], "dimensions": { "package": { "dirs": "packages/*" } }, "by": "package" }`</sub>
 
 ### Benchmarks
 
-| Repository | Commits | First-parent | Days | Measured | Lines today | Full collect | Daily update | Render | Peak memory |
-|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| getkirby/kirby | 15,214 | 1,654 | 2,844 | 328 | 340,283 | 8.8 s | 0.2 s | < 0.1 s | 168 MB |
-| tauri-apps/tauri | 6,403 | 5,187 | 2,673 | 1,388 | 157,995 | 28 s | 0.2 s | < 0.1 s | 226 MB |
-| angular/angular | 39,236 | 38,250 | 4,432 | 3,093 | 1,666,671 | 2 min 38 s | 0.8 s | < 0.1 s | 347 MB |
+| Repository | Commits | First-parent | Days | Measured | Lines today | Data file | Full collect | Daily update | Render | Peak memory |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| getkirby/kirby | 15,214 | 1,654 | 2,844 | 328 | 340,283 | 55 KB | 11 s | 0.2 s | 0.1 s | 153 MB |
+| angular/angular | 39,236 | 38,250 | 4,432 | 3,093 | 1,666,671 | 951 KB | 2 min 37 s | 0.9 s | 0.1 s | 449 MB |
 
-Measured on 2026-11-05 with an Apple M4 Pro (48 GB), Bun 1.4.2 and git 2.50.1 (Apple Git-155), time zone UTC. *First-parent* commits are the ones on the default branch itself: a merged pull request counts once, however many commits it had. *Measured* are the days with at least one of them. *Daily update* is a second collect right after the full one: it measures the last stored day again, like a scheduled run. Peak memory is the Bun process, without the git processes it starts. Regenerate with `bun run examples`.
+Measured on 2026-11-05 with an Apple M4 Pro (48 GB), Bun 1.4.2 and git 2.50.1 (Apple Git-155), time zone UTC. *First-parent* commits are the ones on the default branch itself: a merged pull request counts once, however many commits it had. *Measured* are the days with at least one of them. The data file is collected with the dimensions of the config (format version 2). *Daily update* is a second collect right after the full one: it measures the last stored day again, like a scheduled run. Peak memory is the Bun process, without the git processes it starts. Regenerate with `bun run examples`.
 
 <!-- examples:end -->
 
@@ -167,7 +166,8 @@ For example:
 
 ## Dimensions
 
-Lines are always counted per extension. `dimensions` adds more splits, each by name:
+Lines are always counted per extension. `dimensions` adds more splits, each by name (see the
+[examples](#examples) for charts made this way):
 
 ```json
 {
