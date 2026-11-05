@@ -92,18 +92,23 @@ const trim = (n: number) =>
   (n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(0) : n.toFixed(1)).replace(/\.0$/, "");
 const full = (n: number) => n.toLocaleString("en-US");
 
-function niceTicks(max: number, target: number): number[] {
+/**
+ * Axis ticks from 0 to just above `max`: a 1/2/2.5/5 step with 3 to 6 intervals that leaves the
+ * least room above `max` (fewer intervals on a tie).
+ */
+export function niceTicks(max: number): number[] {
   if (max <= 0) {
     return [0];
   }
-  const rough = max / target;
-  const pow = 10 ** Math.floor(Math.log10(rough));
-  const step = [1, 2, 2.5, 5, 10].map((m) => m * pow).find((s) => s >= rough) ?? 10 * pow;
-  const ticks: number[] = [];
-  for (let v = 0; v < max + step; v += step) {
-    ticks.push(v);
-  }
-  return ticks;
+  const pow = 10 ** Math.floor(Math.log10(max));
+  const candidates = [pow / 10, pow, pow * 10]
+    .flatMap((p) => [1, 2, 2.5, 5].map((m) => m * p))
+    .filter((step) => Number.isInteger(step))
+    .map((step) => ({ step, intervals: Math.ceil(max / step) }))
+    .filter(({ intervals }) => intervals >= 3 && intervals <= 6)
+    .sort((a, b) => a.step * a.intervals - b.step * b.intervals || a.intervals - b.intervals);
+  const { step, intervals } = candidates[0] ?? { step: pow, intervals: 10 };
+  return Array.from({ length: intervals + 1 }, (_, i) => i * step);
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -212,7 +217,7 @@ export function renderSvg(dataset: Dataset, options: SvgOptions): string {
   const n = days.length;
   const colW = (right - left) / n;
   const yMax = Math.max(...days.map((d) => d.total));
-  const ticks = niceTicks(yMax, 4);
+  const ticks = niceTicks(yMax);
   const scaleMax = ticks[ticks.length - 1];
   const y = (v: number) => bottom - (v / scaleMax) * (bottom - top);
   const x = (i: number) => left + i * colW;

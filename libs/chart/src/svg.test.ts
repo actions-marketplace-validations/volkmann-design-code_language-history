@@ -1,6 +1,22 @@
 import { describe, expect, test } from "bun:test";
 import type { Dataset, DayRecord } from "@language-history/format";
-import { compact, othersSummary, renderSvg, type SvgOptions, stepEdge } from "./svg";
+import { compact, niceTicks, othersSummary, renderSvg, type SvgOptions, stepEdge } from "./svg";
+
+describe("niceTicks", () => {
+  test("takes the step that leaves the least room above the maximum", () => {
+    expect(niceTicks(422_886)).toEqual([0, 100_000, 200_000, 300_000, 400_000, 500_000]);
+    expect(niceTicks(1_234_567)).toEqual([0, 250_000, 500_000, 750_000, 1_000_000, 1_250_000]);
+  });
+
+  test("a maximum on a tick ends the axis there", () => {
+    expect(niceTicks(400)).toEqual([0, 100, 200, 300, 400]);
+  });
+
+  test("small and empty values", () => {
+    expect(niceTicks(7)).toEqual([0, 2, 4, 6, 8]);
+    expect(niceTicks(0)).toEqual([0]);
+  });
+});
 
 describe("stepEdge", () => {
   const end = (i: number) => (i + 1) * 10;
