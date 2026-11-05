@@ -1,0 +1,11 @@
+pre-commit:
+  commands:
+    check:
+      glob: "**/*.{js,ts,cjs,mjs,d.cts,d.mts,json,jsonc}"
+      run: bunx @biomejs/biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off {staged_files}
+      stage_fixed: true
+    # Catch stale lockfiles before they reach CI (dry-run: no packages installed).
+    # `**/package.json`: a new workspace member adds a lockfile entry too.
+    lockfile:
+      glob: "**/package.json"
+      run: bun install --frozen-lockfile --dry-run

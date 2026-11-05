@@ -1,0 +1,23 @@
+{
+  "name": "@language-history/format",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The JSONL data format: types, parsing and serializing",
+  "exports": {
+    ".": "./src/index.ts",
+    "./file": "./src/file.ts"
+  },
+  "browserSafe": [
+    "."
+  ],
+  "scripts": {
+    "test:unit": "bun test"
+  },
+  "sideEffects": false,
+  "nx": {
+    "targets": {
+      "typecheck": {}
+    }
+  }
+}

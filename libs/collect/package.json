@@ -1,0 +1,20 @@
+{
+  "name": "@language-history/collect",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Measures a git history day by day: lines per file extension (Bun, git CLI)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "browserSafe": [],
+  "scripts": {
+    "test:unit": "bun test"
+  },
+  "sideEffects": false,
+  "nx": {
+    "targets": {
+      "typecheck": {}
+    }
+  }
+}

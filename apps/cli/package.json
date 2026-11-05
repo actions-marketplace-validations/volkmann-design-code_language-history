@@ -1,0 +1,15 @@
+{
+  "name": "@language-history/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "language-history command line: collect and render",
+  "bin": {
+    "language-history": "./src/cli.ts"
+  },
+  "nx": {
+    "targets": {
+      "typecheck": {}
+    }
+  }
+}

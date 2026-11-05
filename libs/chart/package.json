@@ -1,0 +1,23 @@
+{
+  "name": "@language-history/chart",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Stacked chart of a dataset: bands, SVG (browser-safe) and PNG",
+  "exports": {
+    ".": "./src/index.ts",
+    "./png": "./src/png.ts"
+  },
+  "browserSafe": [
+    "."
+  ],
+  "scripts": {
+    "test:unit": "bun test"
+  },
+  "sideEffects": false,
+  "nx": {
+    "targets": {
+      "typecheck": {}
+    }
+  }
+}

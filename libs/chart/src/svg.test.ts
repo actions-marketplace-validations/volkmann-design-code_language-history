@@ -1,0 +1,123 @@
+import { describe, expect, test } from "bun:test";
+import type { Dataset, DayRecord } from "@language-history/format";
+import { compact, othersSummary, renderSvg, type SvgOptions, stepEdge } from "./svg";
+
+describe("stepEdge", () => {
+  const end = (i: number) => (i + 1) * 10;
+
+  test("one horizontal segment per run of equal levels", () => {
+    expect(stepEdge([5, 5, 3, 3, 3, 7], end)).toBe("H20V3H50V7H60");
+  });
+
+  test("a constant edge is a single segment", () => {
+    expect(stepEdge([4, 4, 4, 4], end)).toBe("H40");
+    expect(stepEdge([4], end)).toBe("H10");
+  });
+
+  test("every change produces a step", () => {
+    expect(stepEdge([1, 2, 1], end)).toBe("H10V2H20V1H30");
+  });
+});
+
+describe("othersSummary", () => {
+  test("count, then the first extensions and how many are left", () => {
+    expect(othersSummary(["yml", "json", "scss", "sh", "css"], 3)).toBe(
+      "5 extensions: .yml, .json, .scss and 2 more",
+    );
+    expect(othersSummary(["yml", "json"], 3)).toBe("2 extensions: .yml, .json");
+    expect(othersSummary(["yml"], 3)).toBe("1 extension: .yml");
+    expect(othersSummary(["yml", "json"], 0)).toBe("2 extensions");
+  });
+});
+
+describe("compact", () => {
+  test("abbreviates thousands and millions", () => {
+    expect(compact(0)).toBe("0");
+    expect(compact(999)).toBe("999");
+    expect(compact(1500)).toBe("1.5k");
+    expect(compact(2000)).toBe("2k");
+    expect(compact(12_345)).toBe("12k");
+    expect(compact(345_678)).toBe("346k");
+    expect(compact(1_200_000)).toBe("1.2M");
+  });
+});
+
+describe("renderSvg", () => {
+  const days = (count: number): DayRecord[] =>
+    Array.from({ length: count }, (_, i) => {
+      const date = new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10);
+      const byExt = { ts: 100 + i, md: 50 };
+      return { date, commit: `c${i}`, carried: i % 3 === 1, total: 150 + i, byExt };
+    });
+  const options: SvgOptions = {
+    width: 1200,
+    height: 460,
+    theme: "auto",
+    title: "Lines <of> code",
+    tooltips: true,
+    threshold: 0.03,
+    maxBands: 8,
+    othersListed: 3,
+  };
+  const render = (dataset: Partial<Dataset>, overrides: Partial<SvgOptions> = {}) =>
+    renderSvg({ meta: null, days: [], ...dataset }, { ...options, ...overrides });
+
+  test("throws without data", () => {
+    expect(() => render({})).toThrow("No data");
+  });
+
+  test("few days: one rect per column and band", () => {
+    const svg = render({ days: days(10) });
+    const band = svg.match(/<g class="s0" fill="[^"]+">(.*?)<\/g>/)?.[1] ?? "";
+    expect(band.match(/<rect /g)).toHaveLength(10);
+    expect(svg).not.toContain("<path");
+  });
+
+  test("many days: one step path per band, with a seam between bands", () => {
+    const svg = render({ days: days(400) });
+    expect(svg.match(/<path d="[^"]+" class="s\d"/g)).toHaveLength(2);
+    expect(svg.match(/class="seam"/g)).toHaveLength(1);
+  });
+
+  test("legend names the bands with their latest value", () => {
+    const svg = render({ days: days(10) });
+    expect(svg).toContain(">.ts</tspan>");
+    expect(svg).toContain(">.md</tspan>");
+    expect(svg).toContain(">109</tspan>");
+    expect(svg).toContain(">50</tspan>");
+  });
+
+  test("the Others legend entry counts and names its extensions", () => {
+    const dataset = {
+      days: [
+        {
+          date: "2026-01-01",
+          commit: "c",
+          carried: false,
+          total: 1000,
+          byExt: { ts: 900, yml: 50, json: 30, scss: 15, sh: 5 },
+        },
+      ],
+    };
+    expect(render(dataset, { threshold: 0.1 })).toContain(
+      ">100 · 4 extensions: .yml, .json, .scss and 1 more</tspan>",
+    );
+    expect(render(dataset, { threshold: 0.1, othersListed: 0 })).toContain(
+      ">100 · 4 extensions</tspan>",
+    );
+  });
+
+  test("escapes the title", () => {
+    expect(render({ days: days(3) })).toContain("Lines &lt;of&gt; code");
+  });
+
+  test("tooltips mark carried days and can be turned off", () => {
+    expect(render({ days: days(3) })).toContain("2026-01-02 (no commit, carried over)");
+    expect(render({ days: days(3) }, { tooltips: false })).not.toContain("<title>");
+  });
+
+  test("auto theme adds dark-mode rules, fixed themes do not", () => {
+    expect(render({ days: days(3) })).toContain("@media (prefers-color-scheme: dark)");
+    expect(render({ days: days(3) }, { theme: "dark" })).not.toContain("@media");
+  });
+});
