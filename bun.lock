@@ -26,6 +26,10 @@
         "language-history": "./src/cli.ts",
       },
     },
+    "apps/examples": {
+      "name": "@language-history/examples",
+      "version": "0.0.0",
+    },
     "libs/chart": {
       "name": "@language-history/chart",
       "version": "0.0.0",
@@ -77,6 +81,8 @@
     "@language-history/cli": ["@language-history/cli@workspace:apps/cli"],
 
     "@language-history/collect": ["@language-history/collect@workspace:libs/collect"],
+
+    "@language-history/examples": ["@language-history/examples@workspace:apps/examples"],
 
     "@language-history/format": ["@language-history/format@workspace:libs/format"],
 

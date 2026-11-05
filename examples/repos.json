@@ -1,0 +1,20 @@
+[
+  {
+    "name": "kirby",
+    "url": "https://github.com/getkirby/kirby.git",
+    "title": "getkirby/kirby",
+    "note": "skips `cacert.pem`, a copied-in certificate bundle."
+  },
+  {
+    "name": "tauri",
+    "url": "https://github.com/tauri-apps/tauri.git",
+    "title": "tauri-apps/tauri",
+    "note": "skips the license texts (`LICENSE-APACHE-2.0` would count as `.0`), generated test snapshots (`.snap`) and cargo-vet's `supply-chain/` data."
+  },
+  {
+    "name": "angular",
+    "url": "https://github.com/angular/angular.git",
+    "title": "angular/angular",
+    "note": "skips `.dic` files, a spell-check word list for the docs (2022–2024)."
+  }
+]

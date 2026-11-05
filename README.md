@@ -17,6 +17,40 @@ up to date by a scheduled job and embedded as an SVG that follows the viewer's l
 
 > Status: pre-release, no tagged version yet. Pin the action to a commit until `v1` exists.
 
+## Examples
+
+<!-- examples:start -->
+
+### [getkirby/kirby](https://github.com/getkirby/kirby)
+
+![getkirby/kirby: lines of code per file extension over time](examples/kirby.svg)
+
+With [a config](examples/kirby.config.json): skips `cacert.pem`, a copied-in certificate bundle.
+
+### [tauri-apps/tauri](https://github.com/tauri-apps/tauri)
+
+![tauri-apps/tauri: lines of code per file extension over time](examples/tauri.svg)
+
+With [a config](examples/tauri.config.json): skips the license texts (`LICENSE-APACHE-2.0` would count as `.0`), generated test snapshots (`.snap`) and cargo-vet's `supply-chain/` data.
+
+### [angular/angular](https://github.com/angular/angular)
+
+![angular/angular: lines of code per file extension over time](examples/angular.svg)
+
+With [a config](examples/angular.config.json): skips `.dic` files, a spell-check word list for the docs (2022–2024).
+
+### Benchmarks
+
+| Repository | Commits | First-parent | Days | Measured | Lines today | Full collect | Daily update | Render | Peak memory |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| getkirby/kirby | 15,214 | 1,654 | 2,844 | 328 | 340,283 | 8.8 s | 0.2 s | < 0.1 s | 168 MB |
+| tauri-apps/tauri | 6,403 | 5,187 | 2,673 | 1,388 | 157,995 | 28 s | 0.2 s | < 0.1 s | 226 MB |
+| angular/angular | 39,236 | 38,250 | 4,432 | 3,093 | 1,666,671 | 2 min 38 s | 0.8 s | < 0.1 s | 347 MB |
+
+Measured on 2026-11-05 with an Apple M4 Pro (48 GB), Bun 1.4.2 and git 2.50.1 (Apple Git-155), time zone UTC. *First-parent* commits are the ones on the default branch itself: a merged pull request counts once, however many commits it had. *Measured* are the days with at least one of them. *Daily update* is a second collect right after the full one: it measures the last stored day again, like a scheduled run. Peak memory is the Bun process, without the git processes it starts. Regenerate with `bun run examples`.
+
+<!-- examples:end -->
+
 ## GitHub Action
 
 ```yaml
@@ -192,6 +226,7 @@ An Nx monorepo on Bun workspaces. Libraries are imported by name (`@language-his
 | `@language-history/options` | `libs/options` | Settings: config file, overrides, defaults | Bun |
 | `@language-history/cli` | `apps/cli` | The `language-history` command | Bun |
 | `@language-history/action` | `apps/action` | The GitHub Action, run by the root `action.yml` | Bun + git |
+| `@language-history/examples` | `apps/examples` | Regenerates the charts in `examples/` and the benchmarks (`bun run examples`) | Bun + git |
 
 Entry points listed under `browserSafe` in a package's `package.json` must not import Node, Bun or
 another package's non-browser entry point, so a web app can use them.

@@ -1,0 +1,12 @@
+{
+  "name": "@language-history/examples",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Regenerates the example charts in examples/ and measures how long that takes",
+  "nx": {
+    "targets": {
+      "typecheck": {}
+    }
+  }
+}

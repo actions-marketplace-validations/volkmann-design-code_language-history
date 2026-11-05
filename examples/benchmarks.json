@@ -1,0 +1,102 @@
+{
+  "machine": {
+    "cpu": "Apple M4 Pro",
+    "memoryGB": 48,
+    "os": "darwin 25.5.0",
+    "bun": "1.4.2",
+    "git": "2.50.1 (Apple Git-155)",
+    "date": "2026-11-05"
+  },
+  "benchmarks": [
+    {
+      "name": "kirby",
+      "title": "getkirby/kirby",
+      "url": "https://github.com/getkirby/kirby.git",
+      "ref": "main",
+      "commit": "8735b12b7f5dea10149d34a6666b37cb0c9cb0a3",
+      "commits": 15214,
+      "firstParentCommits": 1654,
+      "packMB": 60,
+      "firstDay": "2019-01-13",
+      "lastDay": "2026-10-26",
+      "days": 2844,
+      "measuredDays": 328,
+      "lines": 340283,
+      "extensions": 30,
+      "dataKB": 1042,
+      "chartKB": 38,
+      "full": {
+        "seconds": 8.84,
+        "peakMB": 168
+      },
+      "incremental": {
+        "seconds": 0.18,
+        "peakMB": 90
+      },
+      "render": {
+        "seconds": 0.02,
+        "peakMB": 47
+      }
+    },
+    {
+      "name": "tauri",
+      "title": "tauri-apps/tauri",
+      "url": "https://github.com/tauri-apps/tauri.git",
+      "ref": "dev",
+      "commit": "7a5032687fa03c22bfe1dd2411ea60defcae3fca",
+      "commits": 6403,
+      "firstParentCommits": 5187,
+      "packMB": 102,
+      "firstDay": "2019-07-13",
+      "lastDay": "2026-11-05",
+      "days": 2673,
+      "measuredDays": 1388,
+      "lines": 157995,
+      "extensions": 69,
+      "dataKB": 1431,
+      "chartKB": 127,
+      "full": {
+        "seconds": 27.78,
+        "peakMB": 226
+      },
+      "incremental": {
+        "seconds": 0.16,
+        "peakMB": 95
+      },
+      "render": {
+        "seconds": 0.03,
+        "peakMB": 52
+      }
+    },
+    {
+      "name": "angular",
+      "title": "angular/angular",
+      "url": "https://github.com/angular/angular.git",
+      "ref": "main",
+      "commit": "f5b0fa96a44c30af55c84e1d0e0e09c82979ee5d",
+      "commits": 39236,
+      "firstParentCommits": 38250,
+      "packMB": 488,
+      "firstDay": "2014-09-18",
+      "lastDay": "2026-11-05",
+      "days": 4432,
+      "measuredDays": 3093,
+      "lines": 1666671,
+      "extensions": 89,
+      "dataKB": 2455,
+      "chartKB": 275,
+      "full": {
+        "seconds": 158.02,
+        "peakMB": 347
+      },
+      "incremental": {
+        "seconds": 0.8,
+        "peakMB": 312
+      },
+      "render": {
+        "seconds": 0.04,
+        "peakMB": 59
+      }
+    }
+  ]
+}

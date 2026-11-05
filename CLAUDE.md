@@ -11,6 +11,7 @@ bun run check               # biome (format + lint); `bunx biome check --write .
 bun run typecheck           # nx run-many -t typecheck
 bun run test                # nx run-many -t test:unit (bun test per project)
 bun language-history --help # the CLI from source
+bun run examples            # re-measure the example repos (clones into the temp dir), update README
 ```
 
 ## Conventions
